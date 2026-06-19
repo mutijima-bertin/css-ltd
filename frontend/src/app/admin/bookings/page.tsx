@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { fetchAllBookings } from '@/lib/api';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 type Booking = {
   id: number;
@@ -22,53 +24,28 @@ type Booking = {
 };
 
 export default function AdminBookingsPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [password, setPassword] = useState('');
-  const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
-    if (authed) {
-      setLoading(true);
-      fetchAllBookings()
-        .then(setBookings)
-        .catch(() => setBookings([]))
-        .finally(() => setLoading(false));
+    if (authLoading) return;
+    if (!user || user.role !== 'admin') {
+      router.push('/login');
+      return;
     }
-  }, [authed]);
+    setLoading(true);
+    fetchAllBookings()
+      .then(setBookings)
+      .catch(() => setBookings([]))
+      .finally(() => setLoading(false));
+  }, [user, authLoading, router]);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === 'cssadmin2026') {
-      setAuthed(true);
-    } else {
-      alert('Incorrect password');
-    }
-  };
-
-  if (!authed) {
+  if (authLoading || !user) {
     return (
       <div className="retro-grid min-h-screen flex items-center justify-center py-12">
-        <div className="retro-card p-8 max-w-sm w-full">
-          <h1 className="text-2xl font-black uppercase tracking-tight text-center mb-6">
-            Admin <span className="text-primary">Login</span>
-          </h1>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <input
-              type="password"
-              placeholder="Admin Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-foreground bg-background font-mono text-sm"
-            />
-            <button
-              type="submit"
-              className="w-full retro-border bg-primary text-background py-3 font-bold text-sm uppercase tracking-wider"
-            >
-              Login
-            </button>
-          </form>
-        </div>
+        <p className="font-mono text-muted">Checking access...</p>
       </div>
     );
   }

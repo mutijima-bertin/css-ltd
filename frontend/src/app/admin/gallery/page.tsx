@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -18,18 +20,22 @@ type GalleryItem = {
 };
 
 export default function AdminGalleryPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [password, setPassword] = useState('');
-  const [authed, setAuthed] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({ title: '', description: '', category: '', featured: false, sort_order: 0 });
-  const [editId, setEditId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (authed) loadItems();
-  }, [authed]);
+    if (authLoading) return;
+    if (!user || user.role !== 'admin') {
+      router.push('/login');
+      return;
+    }
+    loadItems();
+  }, [user, authLoading, router]);
 
   const loadItems = async () => {
     setLoading(true);
@@ -40,15 +46,6 @@ export default function AdminGalleryPage() {
       setItems([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === 'cssadmin2026') {
-      setAuthed(true);
-    } else {
-      alert('Incorrect password');
     }
   };
 
@@ -101,20 +98,10 @@ export default function AdminGalleryPage() {
     }
   };
 
-  if (!authed) {
+  if (authLoading || !user) {
     return (
       <div className="retro-grid min-h-screen flex items-center justify-center py-12">
-        <div className="retro-card p-8 max-w-sm w-full">
-          <h1 className="text-2xl font-black uppercase tracking-tight text-center mb-6">
-            Admin <span className="text-primary">Login</span>
-          </h1>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <input type="password" placeholder="Admin Password" value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-foreground bg-background font-mono text-sm" />
-            <button type="submit" className="w-full retro-border bg-primary text-background py-3 font-bold text-sm uppercase tracking-wider">Login</button>
-          </form>
-        </div>
+        <p className="font-mono text-muted">Checking access...</p>
       </div>
     );
   }

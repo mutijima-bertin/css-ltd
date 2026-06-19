@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 
 const navLinks = [
   { href: '/', label: 'Home' },
@@ -15,6 +16,7 @@ const navLinks = [
 ];
 
 export default function Navbar() {
+  const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
 
   return (
@@ -35,6 +37,23 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
+          {user ? (
+            <>
+              {user.role === 'admin' && (
+                <Link href="/admin/bookings" className="text-accent text-sm uppercase tracking-wider hover:text-white">
+                  Admin
+                </Link>
+              )}
+              <span className="text-muted text-xs">{user.full_name}</span>
+              <button onClick={logout} className="text-sm uppercase tracking-wider hover:text-primary">
+                Logout
+              </button>
+            </>
+          ) : (
+            <Link href="/login" className="text-accent text-sm uppercase tracking-wider hover:text-white">
+              Login
+            </Link>
+          )}
         </div>
 
         <button
@@ -60,6 +79,22 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
+          {user ? (
+            <>
+              {user.role === 'admin' && (
+                <Link href="/admin/bookings" className="block px-4 py-3 text-accent text-sm uppercase tracking-wider" onClick={() => setOpen(false)}>
+                  Admin Panel
+                </Link>
+              )}
+              <button onClick={() => { logout(); setOpen(false); }} className="block w-full text-left px-4 py-3 text-sm uppercase tracking-wider hover:text-primary">
+                Logout ({user.full_name})
+              </button>
+            </>
+          ) : (
+            <Link href="/login" className="block px-4 py-3 text-accent text-sm uppercase tracking-wider" onClick={() => setOpen(false)}>
+              Login
+            </Link>
+          )}
         </div>
       )}
     </nav>

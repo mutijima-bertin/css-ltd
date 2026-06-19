@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -29,18 +31,21 @@ type TalentProfile = {
 };
 
 export default function AdminTalentPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [profiles, setProfiles] = useState<TalentProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [password, setPassword] = useState('');
-  const [authed, setAuthed] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
-    if (authed) {
-      loadProfiles();
+    if (authLoading) return;
+    if (!user || user.role !== 'admin') {
+      router.push('/login');
+      return;
     }
-  }, [authed]);
+    loadProfiles();
+  }, [user, authLoading, router]);
 
   const loadProfiles = async () => {
     setLoading(true);
@@ -55,15 +60,6 @@ export default function AdminTalentPage() {
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === 'cssadmin2026') {
-      setAuthed(true);
-    } else {
-      alert('Incorrect password');
-    }
-  };
-
   const handleStatus = async (id: number, status: string) => {
     try {
       await fetch(`${API_BASE}/api/talent/${id}`, {
@@ -74,7 +70,7 @@ export default function AdminTalentPage() {
       setNotes('');
       setExpanded(null);
       loadProfiles();
-    } catch (e: any) {
+    } catch {
       alert('Failed to update status');
     }
   };
@@ -95,29 +91,10 @@ export default function AdminTalentPage() {
     try { return JSON.parse(val); } catch { return []; }
   };
 
-  if (!authed) {
+  if (authLoading || !user) {
     return (
       <div className="retro-grid min-h-screen flex items-center justify-center py-12">
-        <div className="retro-card p-8 max-w-sm w-full">
-          <h1 className="text-2xl font-black uppercase tracking-tight text-center mb-6">
-            Admin <span className="text-primary">Login</span>
-          </h1>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <input
-              type="password"
-              placeholder="Admin Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border-2 border-foreground bg-background font-mono text-sm"
-            />
-            <button
-              type="submit"
-              className="w-full retro-border bg-primary text-background py-3 font-bold text-sm uppercase tracking-wider"
-            >
-              Login
-            </button>
-          </form>
-        </div>
+        <p className="font-mono text-muted">Checking access...</p>
       </div>
     );
   }
@@ -258,7 +235,7 @@ export default function AdminTalentPage() {
                           {p.demos.map((d) => (
                             <li key={d.id}>
                               <a
-                                href={`${API_BASE}${d.file_url}`}
+                                href={d.file_url}
                                 target="_blank"
                                 className="text-secondary underline text-xs"
                               >
