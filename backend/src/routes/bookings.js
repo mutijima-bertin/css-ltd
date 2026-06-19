@@ -19,6 +19,21 @@ const BOOKING_PRICES = {
   4: 90000,
 };
 
+const toDateStr = (v) => {
+  if (!v) return v;
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return String(v).slice(0, 10);
+  return d.toISOString().slice(0, 10);
+};
+
+const toTimeStr = (v) => {
+  if (!v) return v;
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(String(v))) return String(v);
+  const d = new Date(v);
+  if (!isNaN(d.getTime())) return d.toISOString().slice(11, 19);
+  return String(v);
+};
+
 router.get('/slots', async (req, res) => {
   try {
     const { date, start_date, end_date } = req.query;
@@ -36,21 +51,40 @@ router.get('/slots', async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const slots = await getSlotsForRange(today, future);
-    res.json(slots);
+    return res.json(slots);
   } catch (err) {
+    console.error('Slots fetch error:', err.message);
     res.status(500).json({ error: 'Failed to fetch slots' });
   }
 });
 
 router.post('/', async (req, res) => {
   try {
-    const { client_name, client_email, client_phone, booking_date, start_time, end_time, duration_hours } = req.body;
+    const { client_name, client_email, client_phone, booking_date, start_time, end_time, duration_hours, country_code } = req.body;
 
     if (!client_name || !client_email || !client_phone || !booking_date || !start_time || !end_time || !duration_hours) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    const amount = BOOKING_PRICES[duration_hours];
+    const normalized = {
+      client_name: String(client_name).trim(),
+      client_email: String(client_email).trim(),
+      client_phone: String(client_phone).trim(),
+      country_code: country_code || '250',
+      booking_date: toDateStr(booking_date),
+      start_time: toTimeStr(start_time),
+      end_time: toTimeStr(end_time),
+      duration_hours: Number(duration_hours),
+    };
+
+    if (!normalized.booking_date) {
+      return res.status(400).json({ error: 'Invalid booking date format' });
+    }
+    if (!normalized.start_time || !normalized.end_time) {
+      return res.status(400).json({ error: 'Invalid time format' });
+    }
+
+    const amount = BOOKING_PRICES[normalized.duration_hours];
     if (!amount) {
       return res.status(400).json({ error: 'Invalid duration. Choose 2 or 4 hours.' });
     }
@@ -58,13 +92,7 @@ router.post('/', async (req, res) => {
     const deposit_amount = Math.round(amount * 0.5);
 
     const bookingId = await createBooking({
-      client_name,
-      client_email,
-      client_phone,
-      booking_date,
-      start_time,
-      end_time,
-      duration_hours,
+      ...normalized,
       amount,
       deposit_amount,
     });
@@ -74,17 +102,19 @@ router.post('/', async (req, res) => {
 
     let payment_link = null;
     let charge_id = null;
+    let payment_instruction = null;
     try {
       const paymentData = await initiatePayment({
         amount: deposit_amount,
-        email: client_email,
-        phone: client_phone,
-        name: client_name,
+        email: normalized.client_email,
+        phone: normalized.client_phone,
+        name: normalized.client_name,
         tx_ref,
-        redirect_url,
+        country_code: normalized.country_code,
       });
       payment_link = paymentData.link;
       charge_id = paymentData.charge_id;
+      payment_instruction = paymentData.instruction;
 
       await createPaymentRecord({
         booking_id: bookingId,
@@ -102,13 +132,23 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       booking_id: bookingId,
       payment_link,
+      payment_instruction,
       charge_id,
       tx_ref,
       deposit_amount,
       amount,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message || 'Failed to create booking' });
+    console.error('Booking creation error:', err.message);
+    let msg = 'Failed to create booking';
+    if (err.message?.includes('Incorrect date')) {
+      msg = 'Invalid date or time format. Please try selecting the date again.';
+    } else if (err.message?.includes('Duplicate')) {
+      msg = 'This slot has already been booked. Please choose another time.';
+    } else if (err.code === 'ER_NO_REFERENCED_ROW_2') {
+      msg = 'Invalid booking reference.';
+    }
+    res.status(500).json({ error: msg });
   }
 });
 

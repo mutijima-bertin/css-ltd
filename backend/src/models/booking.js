@@ -1,12 +1,43 @@
 import pool from '../config/db.js';
 
+const toYMD = (v) => {
+  if (!v) return v;
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+  const d = v instanceof Date ? v : new Date(v);
+  if (!isNaN(d.getTime())) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  return String(v).slice(0, 10);
+};
+
+const toHMS = (v) => {
+  if (!v) return v;
+  if (typeof v === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(v)) return v;
+  const d = v instanceof Date ? v : new Date(v);
+  if (!isNaN(d.getTime())) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+  return String(v).slice(0, 8);
+};
+
+const formatSlotDates = (rows) =>
+  (rows || []).map((r) => ({
+    ...r,
+    date: toYMD(r.date),
+    start_time: toHMS(r.start_time),
+    end_time: toHMS(r.end_time),
+  }));
+
 export const getAvailableSlots = async (date) => {
   const conn = await pool.getConnection();
   try {
-    return await conn.query(
+    const rows = await conn.query(
       `SELECT * FROM studio_slots WHERE date = ? AND is_available = TRUE ORDER BY start_time`,
       [date]
     );
+    return formatSlotDates(rows);
   } finally {
     conn.release();
   }
@@ -15,12 +46,13 @@ export const getAvailableSlots = async (date) => {
 export const getSlotsForRange = async (startDate, endDate) => {
   const conn = await pool.getConnection();
   try {
-    return await conn.query(
+    const rows = await conn.query(
       `SELECT date, start_time, end_time, id FROM studio_slots
        WHERE date >= ? AND date <= ? AND is_available = TRUE
        ORDER BY date, start_time`,
       [startDate, endDate]
     );
+    return formatSlotDates(rows);
   } finally {
     conn.release();
   }

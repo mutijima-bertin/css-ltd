@@ -41,6 +41,7 @@ export async function createBooking(data: {
   client_name: string;
   client_email: string;
   client_phone: string;
+  country_code?: string;
   booking_date: string;
   start_time: string;
   end_time: string;

@@ -12,12 +12,52 @@ type Slot = {
 
 const RATES: Record<number, number> = { 2: 50000, 4: 90000 };
 
+const COUNTRIES = [
+  { code: '250', flag: '🇷🇼', name: 'Rwanda' },
+  { code: '254', flag: '🇰🇪', name: 'Kenya' },
+  { code: '256', flag: '🇺🇬', name: 'Uganda' },
+  { code: '255', flag: '🇹🇿', name: 'Tanzania' },
+  { code: '233', flag: '🇬🇭', name: 'Ghana' },
+  { code: '234', flag: '🇳🇬', name: 'Nigeria' },
+  { code: '260', flag: '🇿🇲', name: 'Zambia' },
+  { code: '27', flag: '🇿🇦', name: 'South Africa' },
+  { code: '257', flag: '🇧🇮', name: 'Burundi' },
+  { code: '243', flag: '🇨🇩', name: 'DR Congo' },
+  { code: '1', flag: '🇺🇸', name: 'United States' },
+  { code: '44', flag: '🇬🇧', name: 'United Kingdom' },
+  { code: '33', flag: '🇫🇷', name: 'France' },
+  { code: '49', flag: '🇩🇪', name: 'Germany' },
+  { code: '86', flag: '🇨🇳', name: 'China' },
+];
+
+function ErrorModal({ message, onClose }: { message: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="retro-card max-w-md w-full mx-4 p-6 text-center relative animate-fadeIn"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-4xl mb-3">⚠</div>
+        <h3 className="text-lg font-bold uppercase tracking-wider mb-2">Error</h3>
+        <p className="text-muted font-mono text-sm mb-6">{message}</p>
+        <button
+          onClick={onClose}
+          className="retro-border bg-primary text-background px-6 py-2 font-bold text-sm uppercase tracking-wider"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function BookingPage() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().slice(0, 10);
   const [selectedDate, setSelectedDate] = useState(today);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [duration, setDuration] = useState(2);
+  const [countryCode, setCountryCode] = useState('250');
   const [form, setForm] = useState({ name: '', email: '', phone: '' });
   const [step, setStep] = useState<'date' | 'slot' | 'info' | 'confirm'>('date');
   const [loading, setLoading] = useState(false);
@@ -39,13 +79,18 @@ export default function BookingPage() {
     setLoading(true);
     setError('');
     try {
+      const dateOnly = selectedSlot.date.slice(0, 10);
+      const timeStart = selectedSlot.start_time.slice(0, 8);
+      const timeEnd = selectedSlot.end_time.slice(0, 8);
+      const fullPhone = `${countryCode}${form.phone.replace(/[^0-9]/g, '')}`;
       const res = await createBooking({
         client_name: form.name,
         client_email: form.email,
-        client_phone: form.phone,
-        booking_date: selectedSlot.date,
-        start_time: selectedSlot.start_time,
-        end_time: selectedSlot.end_time,
+        client_phone: fullPhone,
+        country_code: countryCode,
+        booking_date: dateOnly,
+        start_time: timeStart,
+        end_time: timeEnd,
         duration_hours: duration,
       });
       setResult(res);
@@ -82,6 +127,7 @@ export default function BookingPage() {
               <p><span className="font-bold">Reference:</span> #{result.booking_id}</p>
               <p><span className="font-bold">Date:</span> {selectedSlot?.date}</p>
               <p><span className="font-bold">Time:</span> {selectedSlot?.start_time?.slice(0, 5)} - {selectedSlot?.end_time?.slice(0, 5)}</p>
+              <p><span className="font-bold">Phone:</span> {COUNTRIES.find((c) => c.code === countryCode)?.flag} +{countryCode} {form.phone}</p>
               <p><span className="font-bold">Deposit:</span> {deposit.toLocaleString()} RWF</p>
               <p><span className="font-bold">Total:</span> {RATES[duration].toLocaleString()} RWF</p>
             </div>
@@ -94,11 +140,13 @@ export default function BookingPage() {
               >
                 Pay Deposit via MTN MoMo / Airtel Money
               </a>
+            ) : result.payment_instruction ? (
+              <div className="retro-border bg-secondary text-background px-6 py-4 font-bold text-sm text-center">
+                {result.payment_instruction}
+              </div>
             ) : (
               <div className="retro-border bg-primary text-background px-6 py-3 font-bold text-sm">
-                {result.charge_id
-                  ? 'Check your phone — a payment prompt has been sent to your mobile'
-                  : 'Payment gateway pending — we\'ll contact you shortly'}
+                Payment gateway pending — we&apos;ll contact you shortly
               </div>
             )}
             <p className="text-xs text-muted mt-4">
@@ -215,16 +263,34 @@ export default function BookingPage() {
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
                         className="w-full px-3 py-2 border-2 border-foreground bg-background font-mono text-sm"
                       />
-                      <input
-                        type="tel"
-                        placeholder="Phone (e.g. 2507XX XXX XXX)"
-                        value={form.phone}
-                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                        className="w-full px-3 py-2 border-2 border-foreground bg-background font-mono text-sm"
-                      />
+                      <label className="text-xs uppercase tracking-wider font-bold mb-1 block">
+                        Phone Number
+                      </label>
+                      <div className="flex gap-0">
+                        <div className="relative">
+                          <select
+                            value={countryCode}
+                            onChange={(e) => setCountryCode(e.target.value)}
+                            className="appearance-none px-2 py-2 border-2 border-r-0 border-foreground bg-background font-mono text-sm cursor-pointer h-[42px]"
+                          >
+                            {COUNTRIES.map((c) => (
+                              <option key={c.code} value={c.code}>
+                                {c.flag} +{c.code}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <input
+                          type="tel"
+                          placeholder="XX XXX XXXX"
+                          value={form.phone}
+                          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                          className="flex-1 px-3 py-2 border-2 border-foreground bg-background font-mono text-sm"
+                        />
+                      </div>
                     </div>
 
-                    {error && <p className="text-primary font-bold text-sm mt-3">{error}</p>}
+                    {error && <ErrorModal message={error} onClose={() => setError('')} />}
 
                     <button
                       onClick={handleBook}
