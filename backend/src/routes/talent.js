@@ -1,7 +1,4 @@
 import { Router } from 'express';
-import multer from 'multer';
-import path from 'path';
-import crypto from 'crypto';
 import {
   createTalentProfile,
   addDemoFile,
@@ -10,34 +7,11 @@ import {
   updateTalentStatus,
   deleteTalentProfile,
 } from '../models/talent.js';
+import { uploadDemo } from '../services/upload.js';
 
 const router = Router();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/talent/');
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const name = crypto.randomBytes(12).toString('hex');
-    cb(null, `${name}${ext}`);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowed = /\.(mp3|wav|flac|aac|ogg|mp4|mov|avi|mkv|pdf|jpg|jpeg|png|gif|zip|rar)$/i;
-    if (allowed.test(path.extname(file.originalname))) {
-      cb(null, true);
-    } else {
-      cb(new Error('File type not supported. Allowed: audio, video, image, PDF, zip'));
-    }
-  },
-});
-
-router.post('/', upload.array('demos', 5), async (req, res) => {
+router.post('/', uploadDemo.array('demos', 5), async (req, res) => {
   try {
     const { full_name, email, phone, country_code, location, bio, social_links, portfolio_links } = req.body;
 
@@ -69,7 +43,7 @@ router.post('/', upload.array('demos', 5), async (req, res) => {
     const demoIds = [];
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
-        const fileUrl = `/uploads/talent/${file.filename}`;
+        const fileUrl = file.path;
         const fileType = file.mimetype.startsWith('audio') ? 'audio'
           : file.mimetype.startsWith('video') ? 'video'
           : file.mimetype.startsWith('image') ? 'image' : 'document';

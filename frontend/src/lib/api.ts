@@ -70,3 +70,16 @@ export async function fetchBooking(id: number) {
   if (!res.ok) throw new Error('Booking not found');
   return res.json();
 }
+
+export async function fetchGallery(category?: string) {
+  const url = category ? `${API_BASE}/gallery?category=${category}` : `${API_BASE}/gallery`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch gallery');
+  return res.json();
+}
+
+export async function fetchGalleryCategories() {
+  const res = await fetch(`${API_BASE}/gallery/categories`);
+  if (!res.ok) throw new Error('Failed to fetch categories');
+  return res.json();
+}

@@ -11,6 +11,7 @@ import portfolioRoutes from './routes/portfolio.js';
 import servicesRoutes from './routes/services.js';
 import bookingRoutes from './routes/bookings.js';
 import talentRoutes from './routes/talent.js';
+import galleryRoutes from './routes/gallery.js';
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/services', servicesRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/talent', talentRoutes);
+app.use('/api/gallery', galleryRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

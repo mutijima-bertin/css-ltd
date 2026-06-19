@@ -8,6 +8,7 @@ const navLinks = [
   { href: '/portfolio', label: 'Portfolio' },
   { href: '/services', label: 'Services' },
   { href: '/booking', label: 'Book Studio' },
+  { href: '/gallery', label: 'Gallery' },
   { href: '/talent', label: 'Talent' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
