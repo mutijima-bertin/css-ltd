@@ -29,3 +29,43 @@ export async function submitContact(data: { name: string; email: string; phone?:
   if (!res.ok) throw new Error('Failed to send message');
   return res.json();
 }
+
+export async function fetchSlots(date?: string) {
+  const url = date ? `${API_BASE}/bookings/slots?date=${date}` : `${API_BASE}/bookings/slots`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch slots');
+  return res.json();
+}
+
+export async function createBooking(data: {
+  client_name: string;
+  client_email: string;
+  client_phone: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  duration_hours: number;
+}) {
+  const res = await fetch(`${API_BASE}/bookings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to create booking' }));
+    throw new Error(err.error);
+  }
+  return res.json();
+}
+
+export async function fetchAllBookings() {
+  const res = await fetch(`${API_BASE}/bookings`);
+  if (!res.ok) throw new Error('Failed to fetch bookings');
+  return res.json();
+}
+
+export async function fetchBooking(id: number) {
+  const res = await fetch(`${API_BASE}/bookings/${id}`);
+  if (!res.ok) throw new Error('Booking not found');
+  return res.json();
+}

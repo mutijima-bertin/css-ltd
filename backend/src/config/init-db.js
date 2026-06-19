@@ -57,6 +57,55 @@ const initDb = async () => {
       )
     `);
 
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS studio_slots (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        date DATE NOT NULL,
+        start_time TIME NOT NULL,
+        end_time TIME NOT NULL,
+        is_available BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_slot (date, start_time, end_time)
+      )
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS bookings (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        client_name VARCHAR(255) NOT NULL,
+        client_email VARCHAR(255) NOT NULL,
+        client_phone VARCHAR(50) NOT NULL,
+        booking_date DATE NOT NULL,
+        start_time TIME NOT NULL,
+        end_time TIME NOT NULL,
+        duration_hours INT NOT NULL DEFAULT 2,
+        amount DECIMAL(10, 2) NOT NULL,
+        deposit_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+        deposit_paid BOOLEAN DEFAULT FALSE,
+        payment_reference VARCHAR(255),
+        payment_status ENUM('pending', 'deposit_paid', 'completed', 'refunded') DEFAULT 'pending',
+        status ENUM('pending', 'confirmed', 'cancelled', 'completed') DEFAULT 'pending',
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        booking_id INT NOT NULL,
+        transaction_ref VARCHAR(255) NOT NULL,
+        amount DECIMAL(10, 2) NOT NULL,
+        currency VARCHAR(10) DEFAULT 'RWF',
+        provider VARCHAR(50),
+        status ENUM('pending', 'successful', 'failed') DEFAULT 'pending',
+        flw_response JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
+      )
+    `);
+
     console.log('Database initialized: css_ltd with all tables created successfully');
   } catch (err) {
     console.error('Error initializing database:', err);

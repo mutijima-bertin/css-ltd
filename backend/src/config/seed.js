@@ -33,6 +33,41 @@ const seedData = async () => {
       console.log('Portfolio items seeded');
     }
 
+    const existingSlots = await conn.query('SELECT COUNT(*) as count FROM studio_slots');
+    if (Number(existingSlots[0].count) === 0) {
+      const today = new Date();
+      const slots = [];
+      const durations = [2, 4];
+
+      for (let dayOffset = 0; dayOffset < 30; dayOffset++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() + dayOffset);
+        const dayOfWeek = date.getDay();
+
+        if (dayOfWeek === 0) continue;
+
+        const dateStr = date.toISOString().split('T')[0];
+        let startHour = 9;
+        let endHour = 20;
+
+        if (dayOfWeek === 6) {
+          startHour = 10;
+          endHour = 18;
+        }
+
+        for (let h = startHour; h < endHour; h += 2) {
+          const startTime = `${String(h).padStart(2, '0')}:00:00`;
+          const endTime = `${String(h + 2).padStart(2, '0')}:00:00`;
+          slots.push(`('${dateStr}', '${startTime}', '${endTime}', TRUE)`);
+        }
+      }
+
+      if (slots.length > 0) {
+        await conn.query(`INSERT IGNORE INTO studio_slots (date, start_time, end_time, is_available) VALUES ${slots.join(', ')}`);
+        console.log(`Generated ${slots.length} studio slots`);
+      }
+    }
+
     console.log('Seed data inserted successfully');
   } catch (err) {
     console.error('Error seeding data:', err);

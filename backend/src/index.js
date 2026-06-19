@@ -2,9 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
+BigInt.prototype.toJSON = function () {
+  return Number(this);
+};
+
 import contactRoutes from './routes/contact.js';
 import portfolioRoutes from './routes/portfolio.js';
 import servicesRoutes from './routes/services.js';
+import bookingRoutes from './routes/bookings.js';
 
 dotenv.config();
 
@@ -21,6 +26,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/contact', contactRoutes);
 app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/services', servicesRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
