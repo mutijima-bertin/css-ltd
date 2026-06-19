@@ -20,7 +20,6 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
     fetchServices(activeCategory === 'all' ? undefined : activeCategory)
       .then(setServices)
       .catch(() => setServices([]))

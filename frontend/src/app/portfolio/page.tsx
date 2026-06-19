@@ -23,16 +23,9 @@ export default function PortfolioPage() {
   const [selectedItem, setSelectedItem] = useState<PortfolioItem | null>(null);
 
   useEffect(() => {
-    setLoading(true);
     const fn = activeCategory === 'all' ? fetchFeaturedPortfolio : () => fetchPortfolio(activeCategory);
     fn()
-      .then((data) => {
-        if (activeCategory === 'all') {
-          setItems(data);
-        } else {
-          setItems(data);
-        }
-      })
+      .then(setItems)
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   }, [activeCategory]);
