@@ -8,15 +8,19 @@ import {
   deleteTalentProfile,
 } from '../models/talent.js';
 import { uploadDemo } from '../services/upload.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
 
-router.post('/', uploadDemo.array('demos', 5), async (req, res) => {
+router.post('/', authenticate, uploadDemo.array('demos', 5), async (req, res) => {
   try {
-    const { full_name, email, phone, country_code, location, bio, social_links, portfolio_links } = req.body;
+    const full_name = req.body.full_name || req.user.full_name;
+    const email = req.body.email || req.user.email;
+    const phone = req.body.phone || req.user.phone || '';
+    const { country_code, location, bio, social_links, portfolio_links } = req.body;
 
-    if (!full_name || !email || !phone) {
-      return res.status(400).json({ error: 'Name, email and phone are required' });
+    if (!full_name || !email) {
+      return res.status(400).json({ error: 'Name and email are required' });
     }
 
     let parsedSocial = social_links;

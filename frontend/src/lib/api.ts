@@ -47,12 +47,16 @@ export async function createBooking(data: {
   end_time: string;
   duration_hours: number;
 }) {
+  const token = localStorage.getItem('css_token');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}/bookings`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(data),
   });
   if (!res.ok) {
+    if (res.status === 401) throw new Error('Please login to book a session');
     const err = await res.json().catch(() => ({ error: 'Failed to create booking' }));
     throw new Error(err.error);
   }

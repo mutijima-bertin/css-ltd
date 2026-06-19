@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 import { fetchSlots, createBooking } from '@/lib/api';
 
 type Slot = {
@@ -52,6 +54,8 @@ function ErrorModal({ message, onClose }: { message: string; onClose: () => void
 }
 
 export default function BookingPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const today = new Date().toISOString().slice(0, 10);
   const [selectedDate, setSelectedDate] = useState(today);
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -59,6 +63,14 @@ export default function BookingPage() {
   const [duration, setDuration] = useState(2);
   const [countryCode, setCountryCode] = useState('250');
   const [form, setForm] = useState({ name: '', email: '', phone: '' });
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { router.push('/login?redirect=/booking'); return; }
+    if (user) {
+      setForm({ name: user.full_name, email: user.email, phone: user.phone || '' });
+    }
+  }, [user, authLoading, router]);
   const [step, setStep] = useState<'date' | 'slot' | 'info' | 'confirm'>('date');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -116,7 +128,11 @@ export default function BookingPage() {
           </p>
         </div>
 
-        {step === 'confirm' && result ? (
+        {authLoading ? (
+          <div className="retro-grid min-h-screen flex items-center justify-center py-12">
+            <p className="font-mono text-muted"><span className="text-secondary">$</span> loading...<span className="blink ml-1">_</span></p>
+          </div>
+        ) : step === 'confirm' && result ? (
           <div className="retro-card p-8 text-center">
             <div className="text-5xl mb-4">🎧</div>
             <h2 className="text-2xl font-bold mb-2">Booking Confirmed!</h2>

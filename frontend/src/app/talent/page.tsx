@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 const COUNTRIES = [
   { code: '250', flag: '🇷🇼', name: 'Rwanda' },
@@ -25,6 +27,8 @@ type SocialEntry = { platform: string; url: string };
 type LinkEntry = { label: string; url: string };
 
 export default function TalentPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [form, setForm] = useState({
     full_name: '',
     email: '',
@@ -35,6 +39,14 @@ export default function TalentPage() {
     social_links: [{ platform: '', url: '' }] as SocialEntry[],
     portfolio_links: [{ label: '', url: '' }] as LinkEntry[],
   });
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { router.push('/login?redirect=/talent'); return; }
+    if (user) {
+      setForm((prev) => ({ ...prev, full_name: user.full_name, email: user.email, phone: user.phone || '' }));
+    }
+  }, [user, authLoading, router]);
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -64,8 +76,8 @@ export default function TalentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.full_name || !form.email || !form.phone) {
-      setError('Name, email and phone are required');
+    if (!form.full_name || !form.email) {
+      setError('Name and email are required');
       return;
     }
     setLoading(true);
@@ -83,8 +95,10 @@ export default function TalentPage() {
       fd.append('portfolio_links', JSON.stringify(form.portfolio_links.filter((p) => p.label && p.url)));
       files.forEach((f) => fd.append('demos', f));
 
+      const token = localStorage.getItem('css_token');
       const res = await fetch(`${API_BASE}/api/talent`, {
         method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
       });
 
@@ -100,6 +114,14 @@ export default function TalentPage() {
       setLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="retro-grid min-h-screen flex items-center justify-center py-12">
+        <p className="font-mono text-muted"><span className="text-secondary">$</span> loading...<span className="blink ml-1">_</span></p>
+      </div>
+    );
+  }
 
   if (submitted) {
     return (

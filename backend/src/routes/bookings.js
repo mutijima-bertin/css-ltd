@@ -11,6 +11,7 @@ import {
   getBookingByTransactionRef,
 } from '../models/booking.js';
 import { initiatePayment, verifyTransaction } from '../services/flutterwave.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -58,11 +59,14 @@ router.get('/slots', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
   try {
-    const { client_name, client_email, client_phone, booking_date, start_time, end_time, duration_hours, country_code } = req.body;
+    const { booking_date, start_time, end_time, duration_hours, country_code } = req.body;
+    const client_name = req.body.client_name || req.user.full_name;
+    const client_email = req.body.client_email || req.user.email;
+    const client_phone = req.body.client_phone || req.user.phone || '';
 
-    if (!client_name || !client_email || !client_phone || !booking_date || !start_time || !end_time || !duration_hours) {
+    if (!client_name || !client_email || !booking_date || !start_time || !end_time || !duration_hours) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
