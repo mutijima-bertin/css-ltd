@@ -6,6 +6,7 @@ import {
   getTalentProfileById,
   updateTalentStatus,
   deleteTalentProfile,
+  getTalentByEmail,
 } from '../models/talent.js';
 import { uploadDemo } from '../services/upload.js';
 import { authenticate } from '../middleware/auth.js';
@@ -82,6 +83,15 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('Fetch talent error:', err.message);
     res.status(500).json({ error: 'Failed to fetch talent profiles' });
+  }
+});
+
+router.get('/my', authenticate, async (req, res) => {
+  try {
+    const profiles = await getTalentByEmail(req.user.email);
+    res.json(profiles);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch your talent profiles' });
   }
 });
 

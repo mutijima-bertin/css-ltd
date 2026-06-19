@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { createUser, findUserByEmail, findUserById, updateUserPassword } from '../models/user.js';
+import { createUser, findUserByEmail, findUserById, updateUserPassword, updateUser } from '../models/user.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
@@ -73,6 +73,17 @@ router.post('/login', async (req, res) => {
 
 router.get('/me', authenticate, async (req, res) => {
   res.json({ user: req.user });
+});
+
+router.patch('/me', authenticate, async (req, res) => {
+  try {
+    const { full_name, phone } = req.body;
+    await updateUser(req.user.id, { full_name, phone });
+    const updated = await findUserById(req.user.id);
+    res.json({ user: updated });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
 });
 
 router.post('/setup-admin', async (req, res) => {

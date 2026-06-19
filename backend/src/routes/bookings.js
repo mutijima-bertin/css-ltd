@@ -9,9 +9,10 @@ import {
   updateBookingPayment,
   createPaymentRecord,
   getBookingByTransactionRef,
+  getBookingsByEmail,
 } from '../models/booking.js';
 import { initiatePayment, verifyTransaction } from '../services/flutterwave.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -162,6 +163,15 @@ router.get('/', async (req, res) => {
     res.json(bookings);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
+router.get('/my', authenticate, async (req, res) => {
+  try {
+    const bookings = await getBookingsByEmail(req.user.email);
+    res.json(bookings);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch your bookings' });
   }
 });
 

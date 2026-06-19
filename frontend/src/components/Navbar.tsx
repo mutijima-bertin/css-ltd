@@ -39,6 +39,9 @@ export default function Navbar() {
           ))}
           {user ? (
             <>
+              <Link href="/dashboard" className="text-sm uppercase tracking-wider hover:text-accent">
+                Dashboard
+              </Link>
               {user.role === 'admin' && (
                 <Link href="/admin/bookings" className="text-accent text-sm uppercase tracking-wider hover:text-white">
                   Admin
@@ -81,6 +84,9 @@ export default function Navbar() {
           ))}
           {user ? (
             <>
+              <Link href="/dashboard" className="block px-4 py-3 text-sm uppercase tracking-wider" onClick={() => setOpen(false)}>
+                Dashboard
+              </Link>
               {user.role === 'admin' && (
                 <Link href="/admin/bookings" className="block px-4 py-3 text-accent text-sm uppercase tracking-wider" onClick={() => setOpen(false)}>
                   Admin Panel

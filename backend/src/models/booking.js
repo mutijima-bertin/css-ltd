@@ -123,6 +123,18 @@ export const createPaymentRecord = async ({ booking_id, transaction_ref, charge_
   }
 };
 
+export const getBookingsByEmail = async (email) => {
+  const conn = await pool.getConnection();
+  try {
+    return await conn.query(
+      'SELECT * FROM bookings WHERE client_email = ? ORDER BY booking_date DESC, start_time DESC',
+      [email]
+    );
+  } finally {
+    conn.release();
+  }
+};
+
 export const markSlotAvailable = async (date, startTime, endTime) => {
   const conn = await pool.getConnection();
   try {

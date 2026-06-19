@@ -91,3 +91,22 @@ export const deleteTalentProfile = async (id) => {
     conn.release();
   }
 };
+
+export const getTalentByEmail = async (email) => {
+  const conn = await pool.getConnection();
+  try {
+    const profiles = await conn.query(
+      'SELECT * FROM talent_profiles WHERE email = ? ORDER BY created_at DESC',
+      [email]
+    );
+    for (const p of profiles) {
+      p.demos = await conn.query(
+        'SELECT * FROM talent_demos WHERE talent_id = ? ORDER BY created_at DESC',
+        [p.id]
+      );
+    }
+    return profiles;
+  } finally {
+    conn.release();
+  }
+};
