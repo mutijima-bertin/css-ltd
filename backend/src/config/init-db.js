@@ -17,6 +17,20 @@ const initDb = async () => {
     await conn.query(`USE ${process.env.DB_NAME}`);
 
     await conn.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        full_name VARCHAR(255) NOT NULL,
+        username VARCHAR(100) UNIQUE,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        phone VARCHAR(50),
+        password_hash VARCHAR(255) NOT NULL,
+        role ENUM('client', 'admin') DEFAULT 'client',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS contact_messages (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
@@ -72,9 +86,11 @@ const initDb = async () => {
     await conn.query(`
       CREATE TABLE IF NOT EXISTS bookings (
         id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT,
         client_name VARCHAR(255) NOT NULL,
         client_email VARCHAR(255) NOT NULL,
         client_phone VARCHAR(50) NOT NULL,
+        country_code VARCHAR(10) DEFAULT '250',
         booking_date DATE NOT NULL,
         start_time TIME NOT NULL,
         end_time TIME NOT NULL,
@@ -87,7 +103,11 @@ const initDb = async () => {
         status ENUM('pending', 'confirmed', 'cancelled', 'completed') DEFAULT 'pending',
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_bookings_date_status (booking_date, status),
+        INDEX idx_bookings_client_email (client_email),
+        INDEX idx_bookings_time_range (booking_date, start_time, end_time),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
 

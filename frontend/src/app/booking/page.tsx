@@ -93,7 +93,9 @@ export default function BookingPage() {
     try {
       const dateOnly = selectedSlot.date.slice(0, 10);
       const timeStart = selectedSlot.start_time.slice(0, 8);
-      const timeEnd = selectedSlot.end_time.slice(0, 8);
+      const startHour = parseInt(timeStart.split(':')[0]);
+      const endHour = startHour + duration;
+      const timeEnd = `${String(endHour).padStart(2, '0')}:00:00`;
       const fullPhone = `${countryCode}${form.phone.replace(/[^0-9]/g, '')}`;
       const res = await createBooking({
         client_name: form.name,
@@ -142,7 +144,7 @@ export default function BookingPage() {
             <div className="bg-foreground/5 p-4 font-mono text-sm space-y-1 mb-6 text-left">
               <p><span className="font-bold">Reference:</span> #{result.booking_id}</p>
               <p><span className="font-bold">Date:</span> {selectedSlot?.date}</p>
-              <p><span className="font-bold">Time:</span> {selectedSlot?.start_time?.slice(0, 5)} - {selectedSlot?.end_time?.slice(0, 5)}</p>
+              <p><span className="font-bold">Time:</span> {selectedSlot?.start_time?.slice(0, 5)} - {selectedSlot ? String(parseInt(selectedSlot.start_time.split(':')[0]) + duration).padStart(2, '0') + ':00' : ''}</p>
               <p><span className="font-bold">Phone:</span> {COUNTRIES.find((c) => c.code === countryCode)?.flag} +{countryCode} {form.phone}</p>
               <p><span className="font-bold">Deposit:</span> {deposit.toLocaleString()} RWF</p>
               <p><span className="font-bold">Total:</span> {RATES[duration].toLocaleString()} RWF</p>

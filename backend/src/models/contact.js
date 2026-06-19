@@ -21,3 +21,12 @@ export const getAllMessages = async () => {
     conn.release();
   }
 };
+
+export const markMessageAsRead = async (id) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query('UPDATE contact_messages SET is_read = TRUE WHERE id = ?', [id]);
+  } finally {
+    conn.release();
+  }
+};

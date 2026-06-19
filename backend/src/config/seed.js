@@ -37,7 +37,6 @@ const seedData = async () => {
     if (Number(existingSlots[0].count) === 0) {
       const today = new Date();
       const slots = [];
-      const durations = [2, 4];
 
       for (let dayOffset = 0; dayOffset < 30; dayOffset++) {
         const date = new Date(today);
@@ -48,7 +47,7 @@ const seedData = async () => {
 
         const dateStr = date.toISOString().split('T')[0];
         let startHour = 9;
-        let endHour = 20;
+        let endHour = 19;
 
         if (dayOfWeek === 6) {
           startHour = 10;

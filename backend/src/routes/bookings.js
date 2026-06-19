@@ -7,11 +7,14 @@ import {
   getBookingById,
   getAllBookings,
   updateBookingPayment,
-  createPaymentRecord,
   getBookingByTransactionRef,
   getBookingsByEmail,
+  cancelBooking,
+  getPaymentsByBookingId,
+  upsertPaymentRecord,
+  updateBookingStatus,
 } from '../models/booking.js';
-import { initiatePayment, verifyTransaction } from '../services/flutterwave.js';
+import { initiatePayment, verifyTransaction, verifyWebhookSignature } from '../services/flutterwave.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
 
 const router = Router();
@@ -97,6 +100,7 @@ router.post('/', authenticate, async (req, res) => {
     const deposit_amount = Math.round(amount * 0.5);
 
     const bookingId = await createBooking({
+      user_id: req.user.id,
       ...normalized,
       amount,
       deposit_amount,
@@ -121,7 +125,7 @@ router.post('/', authenticate, async (req, res) => {
       charge_id = paymentData.charge_id;
       payment_instruction = paymentData.instruction;
 
-      await createPaymentRecord({
+      await upsertPaymentRecord({
         booking_id: bookingId,
         transaction_ref: tx_ref,
         charge_id,
@@ -148,8 +152,8 @@ router.post('/', authenticate, async (req, res) => {
     let msg = 'Failed to create booking';
     if (err.message?.includes('Incorrect date')) {
       msg = 'Invalid date or time format. Please try selecting the date again.';
-    } else if (err.message?.includes('Duplicate')) {
-      msg = 'This slot has already been booked. Please choose another time.';
+    } else if (err.message?.includes('already been booked')) {
+      msg = 'This time slot has already been booked. Please choose another time.';
     } else if (err.code === 'ER_NO_REFERENCED_ROW_2') {
       msg = 'Invalid booking reference.';
     }
@@ -185,6 +189,31 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+router.patch('/:id/cancel', authenticate, async (req, res) => {
+  try {
+    const booking = await getBookingById(Number(req.params.id));
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({ error: 'Booking is already cancelled' });
+    }
+
+    if (booking.status === 'completed') {
+      return res.status(400).json({ error: 'Cannot cancel a completed booking' });
+    }
+
+    const allowed = await cancelBooking(Number(req.params.id), req.user.id);
+    if (!allowed) {
+      return res.status(403).json({ error: 'You can only cancel your own bookings' });
+    }
+
+    res.json({ success: true, message: 'Booking cancelled' });
+  } catch (err) {
+    console.error('Cancel booking error:', err.message);
+    res.status(500).json({ error: 'Failed to cancel booking' });
+  }
+});
+
 router.post('/verify-payment', async (req, res) => {
   try {
     const { charge_id, tx_ref, status } = req.body;
@@ -204,16 +233,17 @@ router.post('/verify-payment', async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    if (verification.status === 'succeeded') {
+    if (verification.status === 'successful') {
       await updateBookingPayment(booking.id, {
         payment_reference: charge_id,
         payment_status: 'deposit_paid',
         deposit_paid: true,
       });
 
-      await createPaymentRecord({
+      await upsertPaymentRecord({
         booking_id: booking.id,
         transaction_ref: tx_ref,
+        charge_id,
         amount: verification.amount,
         currency: verification.currency,
         provider: 'flutterwave',
@@ -229,9 +259,121 @@ router.post('/verify-payment', async (req, res) => {
 
 router.post('/webhook', async (req, res) => {
   try {
+    if (!verifyWebhookSignature(req)) {
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+
+    const event = req.body;
+
+    if (event.event?.type === 'charge.completed' || event.event?.type === 'charge.success') {
+      const charge = event.event.data;
+      const tx_ref = charge.tx_ref;
+
+      if (!tx_ref) {
+        return res.status(200).json({ received: true });
+      }
+
+      const booking = await getBookingByTransactionRef(tx_ref);
+      if (!booking || booking.status === 'cancelled') {
+        return res.status(200).json({ received: true });
+      }
+
+      const isSuccessful = charge.status === 'successful';
+
+      await updateBookingPayment(booking.id, {
+        payment_reference: charge.id,
+        payment_status: isSuccessful ? 'deposit_paid' : 'pending',
+        deposit_paid: isSuccessful,
+      });
+
+      await upsertPaymentRecord({
+        booking_id: booking.id,
+        transaction_ref: tx_ref,
+        charge_id: charge.id,
+        amount: charge.amount || booking.deposit_amount,
+        currency: charge.currency || 'RWF',
+        provider: 'flutterwave',
+        status: isSuccessful ? 'successful' : 'failed',
+        flw_response: JSON.stringify(event),
+      });
+    }
+
+    if (event.event?.type === 'charge.failed') {
+      const charge = event.event.data;
+      const tx_ref = charge.tx_ref;
+
+      if (tx_ref) {
+        const booking = await getBookingByTransactionRef(tx_ref);
+        if (!booking) {
+          console.warn('Webhook: charge.failed for unknown booking tx_ref:', tx_ref);
+        }
+        await upsertPaymentRecord({
+          booking_id: booking?.id,
+          transaction_ref: tx_ref,
+          charge_id: charge.id,
+          amount: charge.amount || 0,
+          currency: charge.currency || 'RWF',
+          provider: 'flutterwave',
+          status: 'failed',
+          flw_response: JSON.stringify(event),
+        });
+      }
+    }
+
+    if (event.event?.type === 'charge.refunded') {
+      const charge = event.event.data;
+      const tx_ref = charge.tx_ref;
+
+      if (tx_ref) {
+        const booking = await getBookingByTransactionRef(tx_ref);
+        if (booking) {
+          await updateBookingPayment(booking.id, {
+            payment_reference: charge.id,
+            payment_status: 'refunded',
+            deposit_paid: false,
+          });
+
+          await upsertPaymentRecord({
+            booking_id: booking.id,
+            transaction_ref: tx_ref,
+            charge_id: charge.id,
+            amount: charge.amount || 0,
+            currency: charge.currency || 'RWF',
+            provider: 'flutterwave',
+            status: 'failed',
+            flw_response: JSON.stringify(event),
+          });
+        }
+      }
+    }
+
     res.status(200).json({ received: true });
   } catch (err) {
-    res.status(500).json({ error: 'Webhook processing failed' });
+    console.error('Webhook processing error:', err.message);
+    res.status(200).json({ received: true });
+  }
+});
+
+router.get('/:id/payments', async (req, res) => {
+  try {
+    const payments = await getPaymentsByBookingId(Number(req.params.id));
+    res.json(payments);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch payments' });
+  }
+});
+
+router.patch('/:id/status', authenticate, requireRole('admin'), async (req, res) => {
+  try {
+    const { status, admin_notes } = req.body;
+    const validStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({ error: `Invalid status. Use: ${validStatuses.join(', ')}` });
+    }
+    await updateBookingStatus(Number(req.params.id), { status, admin_notes });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update booking status' });
   }
 });
 

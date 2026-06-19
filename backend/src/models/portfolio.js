@@ -38,3 +38,38 @@ export const createItem = async ({ title, category, description, media_url, thum
     conn.release();
   }
 };
+
+export const getItemById = async (id) => {
+  const conn = await pool.getConnection();
+  try {
+    const rows = await conn.query('SELECT * FROM portfolio_items WHERE id = ?', [id]);
+    return rows[0] || null;
+  } finally {
+    conn.release();
+  }
+};
+
+export const updateItem = async (id, updates) => {
+  const conn = await pool.getConnection();
+  try {
+    const fields = [];
+    const params = [];
+    for (const [key, val] of Object.entries(updates)) {
+      if (val !== undefined) { fields.push(`${key} = ?`); params.push(val); }
+    }
+    if (fields.length === 0) return;
+    params.push(id);
+    await conn.query(`UPDATE portfolio_items SET ${fields.join(', ')} WHERE id = ?`, params);
+  } finally {
+    conn.release();
+  }
+};
+
+export const deleteItem = async (id) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query('DELETE FROM portfolio_items WHERE id = ?', [id]);
+  } finally {
+    conn.release();
+  }
+};

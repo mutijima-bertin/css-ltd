@@ -160,6 +160,12 @@ export async function verifyTransaction(chargeId) {
   return data.data;
 }
 
+export function verifyWebhookSignature(req) {
+  const signature = req.headers['verif-hash'];
+  if (!signature) return false;
+  return signature === process.env.FLW_WEBHOOK_SECRET;
+}
+
 export async function verifyTransactionByRef(reference) {
   const token = await getAccessToken();
   const traceId = generateTraceId();
