@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { createUser, findUserByEmail, findUserById, updateUserPassword, updateUser } from '../models/user.js';
+import { createUser, findUserByEmail, findUserByEmailOrUsername, findUserById, updateUserPassword, updateUser } from '../models/user.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
 
 router.post('/register', async (req, res) => {
   try {
-    const { full_name, email, phone, password } = req.body;
+    const { full_name, username, email, phone, password } = req.body;
 
     if (!full_name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are required' });
@@ -24,13 +24,13 @@ router.post('/register', async (req, res) => {
     }
 
     const password_hash = await bcrypt.hash(password, 10);
-    const userId = await createUser({ full_name, email, phone, password_hash, role: 'client' });
+    const userId = await createUser({ full_name, username, email, phone, password_hash, role: 'client' });
 
     const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
 
     res.status(201).json({
       token,
-      user: { id: userId, full_name, email, phone, role: 'client' },
+      user: { id: userId, full_name, username, email, phone, role: 'client' },
     });
   } catch (err) {
     console.error('Registration error:', err.message);
@@ -46,24 +46,24 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      return res.status(400).json({ error: 'Email/Username and password are required' });
     }
 
-    const user = await findUserByEmail(email);
+    const user = await findUserByEmailOrUsername(email);
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid email/username or password' });
     }
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid email/username or password' });
     }
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
 
     res.json({
       token,
-      user: { id: user.id, full_name: user.full_name, email: user.email, phone: user.phone, role: user.role },
+      user: { id: user.id, full_name: user.full_name, username: user.username, email: user.email, phone: user.phone, role: user.role },
     });
   } catch (err) {
     console.error('Login error:', err.message);
