@@ -96,7 +96,9 @@ export default function BookingPage() {
               </a>
             ) : (
               <div className="retro-border bg-primary text-background px-6 py-3 font-bold text-sm">
-                Payment gateway pending — we&apos;ll contact you shortly
+                {result.charge_id
+                  ? 'Check your phone — a payment prompt has been sent to your mobile'
+                  : 'Payment gateway pending — we\'ll contact you shortly'}
               </div>
             )}
             <p className="text-xs text-muted mt-4">

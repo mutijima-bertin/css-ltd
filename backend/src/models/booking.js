@@ -78,13 +78,13 @@ export const updateBookingPayment = async (id, { payment_reference, payment_stat
   }
 };
 
-export const createPaymentRecord = async ({ booking_id, transaction_ref, amount, currency, provider, status }) => {
+export const createPaymentRecord = async ({ booking_id, transaction_ref, charge_id, amount, currency, provider, status }) => {
   const conn = await pool.getConnection();
   try {
     await conn.query(
-      `INSERT INTO payments (booking_id, transaction_ref, amount, currency, provider, status)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [booking_id, transaction_ref, amount, currency, provider || null, status]
+      `INSERT INTO payments (booking_id, transaction_ref, charge_id, amount, currency, provider, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [booking_id, transaction_ref, charge_id || null, amount, currency, provider || null, status]
     );
   } finally {
     conn.release();

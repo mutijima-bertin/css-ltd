@@ -96,6 +96,7 @@ const initDb = async () => {
         id INT AUTO_INCREMENT PRIMARY KEY,
         booking_id INT NOT NULL,
         transaction_ref VARCHAR(255) NOT NULL,
+        charge_id VARCHAR(255),
         amount DECIMAL(10, 2) NOT NULL,
         currency VARCHAR(10) DEFAULT 'RWF',
         provider VARCHAR(50),

@@ -73,6 +73,7 @@ router.post('/', async (req, res) => {
     const redirect_url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/booking/confirmation?booking_id=${bookingId}&tx_ref=${tx_ref}`;
 
     let payment_link = null;
+    let charge_id = null;
     try {
       const paymentData = await initiatePayment({
         amount: deposit_amount,
@@ -83,10 +84,12 @@ router.post('/', async (req, res) => {
         redirect_url,
       });
       payment_link = paymentData.link;
+      charge_id = paymentData.charge_id;
 
       await createPaymentRecord({
         booking_id: bookingId,
         transaction_ref: tx_ref,
+        charge_id,
         amount: deposit_amount,
         currency: 'RWF',
         provider: 'flutterwave',
@@ -99,6 +102,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       booking_id: bookingId,
       payment_link,
+      charge_id,
       tx_ref,
       deposit_amount,
       amount,
@@ -129,22 +133,26 @@ router.get('/:id', async (req, res) => {
 
 router.post('/verify-payment', async (req, res) => {
   try {
-    const { transaction_id, tx_ref, status } = req.body;
+    const { charge_id, tx_ref, status } = req.body;
 
     if (status === 'cancelled') {
       return res.json({ success: false, message: 'Payment was cancelled' });
     }
 
-    const verification = await verifyTransaction(transaction_id);
+    if (!charge_id) {
+      return res.status(400).json({ error: 'charge_id is required' });
+    }
+
+    const verification = await verifyTransaction(charge_id);
     const booking = await getBookingByTransactionRef(tx_ref);
 
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    if (verification.status === 'successful') {
+    if (verification.status === 'succeeded') {
       await updateBookingPayment(booking.id, {
-        payment_reference: transaction_id,
+        payment_reference: charge_id,
         payment_status: 'deposit_paid',
         deposit_paid: true,
       });
@@ -159,7 +167,7 @@ router.post('/verify-payment', async (req, res) => {
       });
     }
 
-    res.json({ success: true, booking });
+    res.json({ success: true, booking, verification });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Payment verification failed' });
   }
@@ -167,28 +175,6 @@ router.post('/verify-payment', async (req, res) => {
 
 router.post('/webhook', async (req, res) => {
   try {
-    const hash = crypto
-      .createHmac('sha256', process.env.FLW_WEBHOOK_SECRET || '')
-      .update(JSON.stringify(req.body))
-      .digest('hex');
-
-    if (hash !== req.headers['verif-hash']) {
-      return res.status(401).json({ error: 'Invalid webhook signature' });
-    }
-
-    const { txRef, status } = req.body.data;
-
-    if (status === 'successful') {
-      const booking = await getBookingByTransactionRef(txRef);
-      if (booking) {
-        await updateBookingPayment(booking.id, {
-          payment_reference: req.body.data.id,
-          payment_status: 'deposit_paid',
-          deposit_paid: true,
-        });
-      }
-    }
-
     res.status(200).json({ received: true });
   } catch (err) {
     res.status(500).json({ error: 'Webhook processing failed' });
