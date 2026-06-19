@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f5f0e8;
+  --foreground: #1a1a1a;
+  --primary: #c8412b;
+  --secondary: #2d5a27;
+  --accent: #e8a838;
+  --muted: #8a8a8a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+  image-rendering: pixelated;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--foreground);
+}
+
+.scanline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+}
+
+.retro-grid {
+  background-image:
+    linear-gradient(rgba(232, 168, 56, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 168, 56, 0.1) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.retro-border {
+  border: 3px solid var(--foreground);
+  box-shadow: 5px 5px 0px var(--foreground);
+}
+
+.retro-card {
+  background: #fff;
+  border: 2px solid var(--foreground);
+  box-shadow: 4px 4px 0px var(--foreground);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.retro-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px var(--foreground);
+}
+
+.blink {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.marquee-inner {
+  display: inline-block;
+  animation: marquee 20s linear infinite;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
