@@ -1,11 +1,11 @@
 import pool from '../config/db.js';
 
-export const createTalentProfile = async ({ full_name, email, phone, country_code, location, bio, social_links, portfolio_links }) => {
+export const createTalentProfile = async ({ full_name, email, phone, country_code, location, bio, profile_picture, skill_tags, social_links, portfolio_links }) => {
   const conn = await pool.getConnection();
   try {
     const result = await conn.query(
-      `INSERT INTO talent_profiles (full_name, email, phone, country_code, location, bio, social_links, portfolio_links)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO talent_profiles (full_name, email, phone, country_code, location, bio, profile_picture, skill_tags, social_links, portfolio_links)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         full_name,
         email,
@@ -13,6 +13,8 @@ export const createTalentProfile = async ({ full_name, email, phone, country_cod
         country_code || '250',
         location || null,
         bio || null,
+        profile_picture || null,
+        skill_tags ? JSON.stringify(skill_tags) : null,
         social_links ? JSON.stringify(social_links) : null,
         portfolio_links ? JSON.stringify(portfolio_links) : null,
       ]
@@ -32,6 +34,24 @@ export const addDemoFile = async ({ talent_id, file_url, file_type, title }) => 
       [talent_id, file_url, file_type || null, title || null]
     );
     return result.insertId;
+  } finally {
+    conn.release();
+  }
+};
+
+export const getApprovedTalentProfiles = async () => {
+  const conn = await pool.getConnection();
+  try {
+    const profiles = await conn.query(
+      `SELECT * FROM talent_profiles WHERE status = 'approved' ORDER BY created_at DESC`
+    );
+    for (const p of profiles) {
+      p.demos = await conn.query(
+        `SELECT * FROM talent_demos WHERE talent_id = ? ORDER BY created_at DESC`,
+        [p.id]
+      );
+    }
+    return profiles;
   } finally {
     conn.release();
   }

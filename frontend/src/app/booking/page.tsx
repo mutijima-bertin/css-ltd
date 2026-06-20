@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { fetchSlots, createBooking } from '@/lib/api';
+import { COUNTRIES } from '@/lib/constants';
 
 type Slot = {
   id: number;
@@ -13,24 +14,6 @@ type Slot = {
 };
 
 const RATES: Record<number, number> = { 2: 50000, 4: 90000 };
-
-const COUNTRIES = [
-  { code: '250', flag: '🇷🇼', name: 'Rwanda' },
-  { code: '254', flag: '🇰🇪', name: 'Kenya' },
-  { code: '256', flag: '🇺🇬', name: 'Uganda' },
-  { code: '255', flag: '🇹🇿', name: 'Tanzania' },
-  { code: '233', flag: '🇬🇭', name: 'Ghana' },
-  { code: '234', flag: '🇳🇬', name: 'Nigeria' },
-  { code: '260', flag: '🇿🇲', name: 'Zambia' },
-  { code: '27', flag: '🇿🇦', name: 'South Africa' },
-  { code: '257', flag: '🇧🇮', name: 'Burundi' },
-  { code: '243', flag: '🇨🇩', name: 'DR Congo' },
-  { code: '1', flag: '🇺🇸', name: 'United States' },
-  { code: '44', flag: '🇬🇧', name: 'United Kingdom' },
-  { code: '33', flag: '🇫🇷', name: 'France' },
-  { code: '49', flag: '🇩🇪', name: 'Germany' },
-  { code: '86', flag: '🇨🇳', name: 'China' },
-];
 
 function ErrorModal({ message, onClose }: { message: string; onClose: () => void }) {
   return (

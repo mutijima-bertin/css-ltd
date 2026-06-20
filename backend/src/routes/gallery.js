@@ -9,6 +9,7 @@ import {
   deleteGalleryItem,
   getGalleryCategories,
 } from '../models/gallery.js';
+import { authenticate, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -42,7 +43,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', uploadGallery.single('media'), async (req, res) => {
+router.post('/', authenticate, requireRole('admin'), uploadGallery.single('media'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Media file is required' });
 
@@ -71,7 +72,7 @@ router.post('/', uploadGallery.single('media'), async (req, res) => {
   }
 });
 
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const { title, description, category, featured, sort_order } = req.body;
     const updates = {};
@@ -87,7 +88,7 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const publicId = await deleteGalleryItem(Number(req.params.id));
     if (publicId) {

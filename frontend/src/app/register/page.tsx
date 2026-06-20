@@ -47,8 +47,8 @@ export default function RegisterPage() {
           <input type="tel" placeholder="Phone (optional)" value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
             className="w-full px-3 py-2 border-2 border-foreground bg-background font-mono text-sm" />
-          <input type="password" placeholder="Password (min 6 characters)" value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={6}
+          <input type="password" placeholder="Password (min 8 characters)" value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={8}
             className="w-full px-3 py-2 border-2 border-foreground bg-background font-mono text-sm" />
           <input type="password" placeholder="Confirm Password" value={form.confirm}
             onChange={(e) => setForm({ ...form, confirm: e.target.value })} required

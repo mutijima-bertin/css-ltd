@@ -1,0 +1,17 @@
+export const COUNTRIES = [
+  { code: '250', flag: '🇷🇼', name: 'Rwanda' },
+  { code: '254', flag: '🇰🇪', name: 'Kenya' },
+  { code: '256', flag: '🇺🇬', name: 'Uganda' },
+  { code: '255', flag: '🇹🇿', name: 'Tanzania' },
+  { code: '233', flag: '🇬🇭', name: 'Ghana' },
+  { code: '234', flag: '🇳🇬', name: 'Nigeria' },
+  { code: '260', flag: '🇿🇲', name: 'Zambia' },
+  { code: '27', flag: '🇿🇦', name: 'South Africa' },
+  { code: '257', flag: '🇧🇮', name: 'Burundi' },
+  { code: '243', flag: '🇨🇩', name: 'DR Congo' },
+  { code: '1', flag: '🇺🇸', name: 'United States' },
+  { code: '44', flag: '🇬🇧', name: 'United Kingdom' },
+  { code: '33', flag: '🇫🇷', name: 'France' },
+  { code: '49', flag: '🇩🇪', name: 'Germany' },
+  { code: '86', flag: '🇨🇳', name: 'China' },
+];

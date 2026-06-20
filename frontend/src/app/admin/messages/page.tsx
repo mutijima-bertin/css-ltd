@@ -34,7 +34,7 @@ export default function AdminMessagesPage() {
   const loadMessages = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('css_token');
       const res = await fetch(`${API_BASE}/api/contact`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -45,7 +45,7 @@ export default function AdminMessagesPage() {
 
   const handleMarkRead = async (id: number) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('css_token');
       await fetch(`${API_BASE}/api/contact/${id}/read`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },

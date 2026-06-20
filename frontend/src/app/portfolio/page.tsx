@@ -30,6 +30,15 @@ export default function PortfolioPage() {
       .finally(() => setLoading(false));
   }, [activeCategory]);
 
+  useEffect(() => {
+    if (!selectedItem) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedItem(null);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [selectedItem]);
+
   return (
     <div className="retro-grid min-h-screen py-12">
       <div className="max-w-6xl mx-auto px-4">

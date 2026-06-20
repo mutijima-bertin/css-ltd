@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function LoginPage() {
+function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -19,7 +20,7 @@ export default function LoginPage() {
     setError('');
     try {
       await login(email, password);
-      router.push('/');
+      router.push(searchParams.get('redirect') || '/dashboard');
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -52,5 +53,19 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="retro-grid min-h-screen flex items-center justify-center py-12">
+        <div className="retro-card p-8 max-w-md w-full text-center font-mono text-muted">
+          <span className="blink">_</span> Loading...
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

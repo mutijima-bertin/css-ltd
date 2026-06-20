@@ -25,6 +25,7 @@ export default function AdminGalleryPage() {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({ title: '', description: '', category: '', featured: false, sort_order: 0 });
 
@@ -46,6 +47,7 @@ export default function AdminGalleryPage() {
       setItems([]);
     } finally {
       setLoading(false);
+      setStatus('');
     }
   };
 
@@ -53,6 +55,7 @@ export default function AdminGalleryPage() {
     e.preventDefault();
     if (!fileRef.current?.files?.length) return;
     setUploading(true);
+    setStatus('');
     try {
       const fd = new FormData();
       fd.append('media', fileRef.current.files[0]);
@@ -69,7 +72,7 @@ export default function AdminGalleryPage() {
       if (fileRef.current) fileRef.current.value = '';
       loadItems();
     } catch (e: any) {
-      alert(e.message);
+      setStatus(e.message || 'Upload failed');
     } finally {
       setUploading(false);
     }
@@ -78,23 +81,28 @@ export default function AdminGalleryPage() {
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this item permanently?')) return;
     try {
-      await fetch(`${API_BASE}/api/gallery/${id}`, { method: 'DELETE' });
+      const token = localStorage.getItem('css_token');
+      await fetch(`${API_BASE}/api/gallery/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
       loadItems();
     } catch {
-      alert('Delete failed');
+      setStatus('Delete failed');
     }
   };
 
   const handleToggleFeatured = async (item: GalleryItem) => {
     try {
+      const token = localStorage.getItem('css_token');
       await fetch(`${API_BASE}/api/gallery/${item.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ featured: !item.featured }),
       });
       loadItems();
     } catch {
-      alert('Update failed');
+      setStatus('Update failed');
     }
   };
 
@@ -144,6 +152,7 @@ export default function AdminGalleryPage() {
                 {uploading ? 'Uploading...' : 'Upload'}
               </button>
             </div>
+            {status && <p className="text-sm font-bold font-mono mt-2" style={{ color: status.startsWith('Delete') || status.startsWith('Update') || status.startsWith('Upload') || status.startsWith('Failed') ? '#c8412b' : '#2d5a27' }}>{status}</p>}
           </form>
         </div>
 

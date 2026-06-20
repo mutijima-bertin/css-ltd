@@ -10,7 +10,7 @@ const navLinks = [
   { href: '/services', label: 'Services' },
   { href: '/booking', label: 'Book Studio' },
   { href: '/gallery', label: 'Gallery' },
-  { href: '/talent', label: 'Talent' },
+  { href: '/talent/browse', label: 'Talent' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
 ];

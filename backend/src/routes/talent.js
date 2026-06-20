@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   createTalentProfile,
   addDemoFile,
+  getApprovedTalentProfiles,
   getAllTalentProfiles,
   getTalentProfileById,
   updateTalentStatus,
@@ -9,19 +10,26 @@ import {
   getTalentByEmail,
 } from '../models/talent.js';
 import { uploadDemo } from '../services/upload.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
-router.post('/', authenticate, uploadDemo.array('demos', 5), async (req, res) => {
+router.post('/', authenticate, uploadDemo.fields([{ name: 'demos', maxCount: 5 }, { name: 'profile_picture', maxCount: 1 }]), async (req, res) => {
   try {
     const full_name = req.body.full_name || req.user.full_name;
     const email = req.body.email || req.user.email;
     const phone = req.body.phone || req.user.phone || '';
-    const { country_code, location, bio, social_links, portfolio_links } = req.body;
+    const { country_code, location, bio, skill_tags, social_links, portfolio_links } = req.body;
 
     if (!full_name || !email) {
       return res.status(400).json({ error: 'Name and email are required' });
+    }
+
+    const profile_picture = req.files?.profile_picture?.[0]?.path || null;
+
+    let parsedSkillTags = skill_tags;
+    if (typeof skill_tags === 'string') {
+      try { parsedSkillTags = JSON.parse(skill_tags); } catch { parsedSkillTags = [skill_tags]; }
     }
 
     let parsedSocial = social_links;
@@ -34,6 +42,8 @@ router.post('/', authenticate, uploadDemo.array('demos', 5), async (req, res) =>
       try { parsedPortfolio = JSON.parse(portfolio_links); } catch { parsedPortfolio = [portfolio_links]; }
     }
 
+    const demos = req.files?.demos || [];
+
     const profileId = await createTalentProfile({
       full_name,
       email,
@@ -41,13 +51,15 @@ router.post('/', authenticate, uploadDemo.array('demos', 5), async (req, res) =>
       country_code,
       location,
       bio,
+      profile_picture,
+      skill_tags: parsedSkillTags,
       social_links: parsedSocial,
       portfolio_links: parsedPortfolio,
     });
 
     const demoIds = [];
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
+    if (demos.length > 0) {
+      for (const file of demos) {
         const fileUrl = file.path;
         const fileType = file.mimetype.startsWith('audio') ? 'audio'
           : file.mimetype.startsWith('video') ? 'video'
@@ -78,10 +90,20 @@ router.post('/', authenticate, uploadDemo.array('demos', 5), async (req, res) =>
 
 router.get('/', async (req, res) => {
   try {
-    const profiles = await getAllTalentProfiles();
+    const profiles = await getApprovedTalentProfiles();
     res.json(profiles);
   } catch (err) {
     console.error('Fetch talent error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch talent profiles' });
+  }
+});
+
+router.get('/all', authenticate, requireRole('admin'), async (req, res) => {
+  try {
+    const profiles = await getAllTalentProfiles();
+    res.json(profiles);
+  } catch (err) {
+    console.error('Fetch all talent error:', err.message);
     res.status(500).json({ error: 'Failed to fetch talent profiles' });
   }
 });
@@ -98,14 +120,14 @@ router.get('/my', authenticate, async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const profile = await getTalentProfileById(Number(req.params.id));
-    if (!profile) return res.status(404).json({ error: 'Talent profile not found' });
+    if (!profile || profile.status !== 'approved') return res.status(404).json({ error: 'Talent profile not found' });
     res.json(profile);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch talent profile' });
   }
 });
 
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const { status, admin_notes } = req.body;
     if (!['pending', 'approved', 'rejected'].includes(status)) {
@@ -118,7 +140,7 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, requireRole('admin'), async (req, res) => {
   try {
     await deleteTalentProfile(Number(req.params.id));
     res.json({ success: true });

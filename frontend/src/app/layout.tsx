@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import ClientWrapper from "@/components/ClientWrapper";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -49,7 +50,9 @@ export default function RootLayout({
         <div className="scanline" />
         <ClientWrapper>
           <Navbar />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1">
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </main>
         </ClientWrapper>
         <footer className="bg-foreground text-background text-center py-6 text-sm">
           <p>&copy; {new Date().getFullYear()} Creative Sound Studio Ltd. All rights reserved.</p>

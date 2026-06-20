@@ -14,7 +14,7 @@ import {
   upsertPaymentRecord,
   updateBookingStatus,
 } from '../models/booking.js';
-import { initiatePayment, verifyTransaction, verifyWebhookSignature } from '../services/flutterwave.js';
+import { initiatePayment, verifyTransaction, verifyWebhookSignature, verifyTransactionByRef } from '../services/flutterwave.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
 
 const router = Router();
@@ -119,6 +119,7 @@ router.post('/', authenticate, async (req, res) => {
         phone: normalized.client_phone,
         name: normalized.client_name,
         tx_ref,
+        redirect_url,
         country_code: normalized.country_code,
       });
       payment_link = paymentData.link;
@@ -161,7 +162,7 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-router.get('/', async (req, res) => {
+router.get('/', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const bookings = await getAllBookings();
     res.json(bookings);
@@ -222,20 +223,36 @@ router.post('/verify-payment', async (req, res) => {
       return res.json({ success: false, message: 'Payment was cancelled' });
     }
 
-    if (!charge_id) {
-      return res.status(400).json({ error: 'charge_id is required' });
+    if (!tx_ref) {
+      return res.status(400).json({ error: 'tx_ref is required' });
     }
 
-    const verification = await verifyTransaction(charge_id);
     const booking = await getBookingByTransactionRef(tx_ref);
-
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
     }
 
-    if (verification.status === 'successful') {
+    let verification = null;
+    let chargeId = charge_id;
+
+    try {
+      if (chargeId) {
+        verification = await verifyTransaction(chargeId);
+      } else {
+        const chargesData = await verifyTransactionByRef(tx_ref);
+        const charge = Array.isArray(chargesData) ? chargesData[0] : chargesData;
+        if (charge) {
+          verification = charge;
+          chargeId = charge.id;
+        }
+      }
+    } catch (verifyErr) {
+      console.warn('Flutterwave verification fetch failed:', verifyErr.message);
+    }
+
+    if (verification && verification.status === 'successful') {
       await updateBookingPayment(booking.id, {
-        payment_reference: charge_id,
+        payment_reference: chargeId,
         payment_status: 'deposit_paid',
         deposit_paid: true,
       });
@@ -243,7 +260,7 @@ router.post('/verify-payment', async (req, res) => {
       await upsertPaymentRecord({
         booking_id: booking.id,
         transaction_ref: tx_ref,
-        charge_id,
+        charge_id: chargeId,
         amount: verification.amount,
         currency: verification.currency,
         provider: 'flutterwave',
@@ -251,9 +268,79 @@ router.post('/verify-payment', async (req, res) => {
       });
     }
 
-    res.json({ success: true, booking, verification });
+    res.json({
+      success: verification?.status === 'successful',
+      payment_status: verification?.status || (booking.deposit_paid ? 'successful' : 'pending'),
+      booking,
+      verification,
+    });
   } catch (err) {
+    console.error('Verify payment error:', err.message);
     res.status(500).json({ error: err.message || 'Payment verification failed' });
+  }
+});
+
+router.post('/:id/retry-payment', authenticate, async (req, res) => {
+  try {
+    const booking = await getBookingById(Number(req.params.id));
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+
+    if (booking.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'You can only retry payment on your own bookings' });
+    }
+
+    if (booking.deposit_paid) {
+      return res.status(400).json({ error: 'Deposit already paid' });
+    }
+
+    if (booking.status === 'cancelled' || booking.status === 'completed') {
+      return res.status(400).json({ error: `Cannot retry payment for a ${booking.status} booking` });
+    }
+
+    const tx_ref = `CSS-${booking.id}-${Date.now()}`;
+    const redirect_url = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/booking/confirmation?booking_id=${booking.id}&tx_ref=${tx_ref}`;
+
+    let payment_link = null;
+    let charge_id = null;
+    let payment_instruction = null;
+    try {
+      const paymentData = await initiatePayment({
+        amount: booking.deposit_amount,
+        email: booking.client_email,
+        phone: booking.client_phone,
+        name: booking.client_name,
+        tx_ref,
+        redirect_url,
+        country_code: booking.country_code,
+      });
+      payment_link = paymentData.link;
+      charge_id = paymentData.charge_id;
+      payment_instruction = paymentData.instruction;
+
+      await upsertPaymentRecord({
+        booking_id: booking.id,
+        transaction_ref: tx_ref,
+        charge_id,
+        amount: booking.deposit_amount,
+        currency: 'RWF',
+        provider: 'flutterwave',
+        status: 'pending',
+      });
+    } catch (paymentErr) {
+      console.warn('Retry payment initiation failed:', paymentErr.message);
+    }
+
+    res.json({
+      booking_id: booking.id,
+      payment_link,
+      payment_instruction,
+      charge_id,
+      tx_ref,
+      deposit_amount: booking.deposit_amount,
+    });
+  } catch (err) {
+    console.error('Retry payment error:', err.message);
+    res.status(500).json({ error: 'Failed to retry payment' });
   }
 });
 

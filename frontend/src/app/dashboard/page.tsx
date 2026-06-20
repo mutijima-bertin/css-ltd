@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { retryPayment } from '@/lib/api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -40,6 +41,7 @@ export default function DashboardPage() {
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState({ full_name: '', phone: '' });
   const [msg, setMsg] = useState('');
+  const [retryingId, setRetryingId] = useState<number | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -86,6 +88,20 @@ export default function DashboardPage() {
       setMsg('Failed to save');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRetryPayment = async (bookingId: number) => {
+    setRetryingId(bookingId);
+    try {
+      const result = await retryPayment(bookingId);
+      if (result.payment_link) {
+        window.open(result.payment_link, '_blank');
+      }
+    } catch {
+      setMsg('Failed to initiate payment');
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -138,13 +154,14 @@ export default function DashboardPage() {
                 <table className="w-full text-sm font-mono">
                   <thead>
                     <tr className="border-b-2 border-foreground">
-                      <th className="p-2 text-left">#</th>
-                      <th className="p-2 text-left">Date</th>
-                      <th className="p-2 text-left">Time</th>
-                      <th className="p-2 text-left">Duration</th>
-                      <th className="p-2 text-left">Deposit</th>
-                      <th className="p-2 text-left">Status</th>
-                    </tr>
+                        <th className="p-2 text-left">#</th>
+                        <th className="p-2 text-left">Date</th>
+                        <th className="p-2 text-left">Time</th>
+                        <th className="p-2 text-left">Duration</th>
+                        <th className="p-2 text-left">Deposit</th>
+                        <th className="p-2 text-left">Status</th>
+                        <th className="p-2 text-left">Actions</th>
+                      </tr>
                   </thead>
                   <tbody>
                     {bookings.map((b) => (
@@ -164,6 +181,17 @@ export default function DashboardPage() {
                             b.status === 'pending' ? 'bg-accent text-foreground' :
                             'bg-primary text-background'
                           }`}>{b.status}</span>
+                        </td>
+                        <td className="p-2">
+                          {!b.deposit_paid && b.status !== 'cancelled' && b.status !== 'completed' && (
+                            <button
+                              onClick={() => handleRetryPayment(b.id)}
+                              disabled={retryingId === b.id}
+                              className="retro-border bg-secondary text-background px-3 py-1 text-xs font-bold uppercase tracking-wider disabled:bg-gray-300"
+                            >
+                              {retryingId === b.id ? '...' : 'Pay Now'}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

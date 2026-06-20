@@ -24,6 +24,8 @@ export default function AdminPortfolioPage() {
   const router = useRouter();
   const [items, setItems] = useState<PortfolioItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState('');
   const [editing, setEditing] = useState<PortfolioItem | null>(null);
   const [form, setForm] = useState({ title: '', category: '', description: '', media_url: '', thumbnail_url: '', youtube_url: '', is_featured: false });
 
@@ -32,6 +34,15 @@ export default function AdminPortfolioPage() {
     if (!user || user.role !== 'admin') { router.push('/login'); return; }
     loadItems();
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (!editing) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setEditing(null);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [editing]);
 
   const loadItems = async () => {
     setLoading(true);
@@ -44,38 +55,47 @@ export default function AdminPortfolioPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title || !form.category || !form.media_url) return alert('Title, category, and media URL required');
+    if (!form.title || !form.category || !form.media_url) { setStatus('Title, category, and media URL required'); return; }
+    setSaving(true);
+    setStatus('');
     try {
+      const token = localStorage.getItem('css_token');
       const res = await fetch(`${API_BASE}/api/portfolio`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(form),
       });
       if (!res.ok) throw new Error('Failed');
       setForm({ title: '', category: '', description: '', media_url: '', thumbnail_url: '', youtube_url: '', is_featured: false });
       loadItems();
-    } catch { alert('Failed to create portfolio item'); }
+    } catch { setStatus('Failed to create portfolio item'); }
+    finally { setSaving(false); }
   };
 
   const handleUpdate = async (id: number) => {
+    setSaving(true);
+    setStatus('');
     try {
+      const token = localStorage.getItem('css_token');
       const res = await fetch(`${API_BASE}/api/portfolio/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(editing),
       });
       if (!res.ok) throw new Error('Failed');
       setEditing(null);
       loadItems();
-    } catch { alert('Failed to update'); }
+    } catch { setStatus('Failed to update'); }
+    finally { setSaving(false); }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this portfolio item?')) return;
     try {
-      await fetch(`${API_BASE}/api/portfolio/${id}`, { method: 'DELETE' });
+      const token = localStorage.getItem('css_token');
+      await fetch(`${API_BASE}/api/portfolio/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       loadItems();
-    } catch { alert('Failed to delete'); }
+    } catch { setStatus('Failed to delete'); }
   };
 
   if (authLoading || !user) {
@@ -128,8 +148,12 @@ export default function AdminPortfolioPage() {
                   onChange={(e) => setForm({ ...form, is_featured: e.target.checked })} />
                 Featured
               </label>
-              <button type="submit" className="retro-border bg-primary text-background px-6 py-2 font-bold text-sm uppercase tracking-wider">Create</button>
+              <button type="submit" disabled={saving}
+                className="retro-border bg-primary text-background px-6 py-2 font-bold text-sm uppercase tracking-wider disabled:bg-gray-300">
+                {saving ? 'Creating...' : 'Create'}
+              </button>
             </div>
+            {status && <p className="text-sm font-bold font-mono mt-2" style={{ color: status.includes('Failed') || status.includes('required') ? '#c8412b' : '#2d5a27' }}>{status}</p>}
           </form>
         </div>
 
@@ -211,8 +235,8 @@ export default function AdminPortfolioPage() {
                   Featured
                 </label>
                 <div className="flex gap-2">
-                  <button onClick={() => handleUpdate(editing.id)}
-                    className="px-4 py-2 text-xs font-bold bg-secondary text-background border-2 border-secondary">Save</button>
+                  <button onClick={() => handleUpdate(editing.id)} disabled={saving}
+                    className="px-4 py-2 text-xs font-bold bg-secondary text-background border-2 border-secondary disabled:bg-gray-300">{saving ? 'Saving...' : 'Save'}</button>
                   <button onClick={() => setEditing(null)}
                     className="px-4 py-2 text-xs font-bold bg-background text-foreground border-2 border-foreground">Cancel</button>
                 </div>

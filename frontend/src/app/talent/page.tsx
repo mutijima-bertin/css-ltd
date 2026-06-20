@@ -36,6 +36,7 @@ export default function TalentPage() {
     country_code: '250',
     location: '',
     bio: '',
+    skill_tags: '',
     social_links: [{ platform: '', url: '' }] as SocialEntry[],
     portfolio_links: [{ label: '', url: '' }] as LinkEntry[],
   });
@@ -48,6 +49,7 @@ export default function TalentPage() {
     }
   }, [user, authLoading, router]);
   const [files, setFiles] = useState<File[]>([]);
+  const [profilePic, setProfilePic] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
@@ -91,8 +93,13 @@ export default function TalentPage() {
       fd.append('country_code', form.country_code);
       fd.append('location', form.location);
       fd.append('bio', form.bio);
+      if (form.skill_tags) {
+        const tags = form.skill_tags.split(',').map((t) => t.trim()).filter(Boolean);
+        fd.append('skill_tags', JSON.stringify(tags));
+      }
       fd.append('social_links', JSON.stringify(form.social_links.filter((s) => s.platform && s.url)));
       fd.append('portfolio_links', JSON.stringify(form.portfolio_links.filter((p) => p.label && p.url)));
+      if (profilePic) fd.append('profile_picture', profilePic);
       files.forEach((f) => fd.append('demos', f));
 
       const token = localStorage.getItem('css_token');
@@ -213,6 +220,30 @@ export default function TalentPage() {
               onChange={(e) => setForm({ ...form, location: e.target.value })}
               className="w-full mt-1 px-3 py-2 border-2 border-foreground bg-background font-mono text-sm"
               placeholder="e.g. Kigali, Rwanda"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs uppercase tracking-wider font-bold">Profile Picture</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setProfilePic(e.target.files?.[0] || null)}
+              className="w-full mt-1 px-3 py-2 border-2 border-foreground bg-background font-mono text-sm file:mr-3 file:py-1 file:px-3 file:border-2 file:border-foreground file:bg-background file:font-mono file:text-sm file:cursor-pointer"
+            />
+            {profilePic && (
+              <p className="mt-1 font-mono text-xs text-muted">{profilePic.name} ({(profilePic.size / 1024).toFixed(0)} KB)</p>
+            )}
+          </div>
+
+          <div>
+            <label className="text-xs uppercase tracking-wider font-bold">Skills (comma-separated)</label>
+            <input
+              type="text"
+              value={form.skill_tags}
+              onChange={(e) => setForm({ ...form, skill_tags: e.target.value })}
+              className="w-full mt-1 px-3 py-2 border-2 border-foreground bg-background font-mono text-sm"
+              placeholder="e.g. Mixing, Mastering, Event Photography, Sound Engineering"
             />
           </div>
 

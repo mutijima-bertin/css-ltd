@@ -24,6 +24,8 @@ export default function AdminServicesPage() {
   const router = useRouter();
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState('');
   const [editing, setEditing] = useState<Service | null>(null);
   const [form, setForm] = useState({ name: '', description: '', price: '', price_unit: 'RWF', category: '', sort_order: 0 });
 
@@ -32,6 +34,15 @@ export default function AdminServicesPage() {
     if (!user || user.role !== 'admin') { router.push('/login'); return; }
     loadServices();
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (!editing) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setEditing(null);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [editing]);
 
   const loadServices = async () => {
     setLoading(true);
@@ -44,38 +55,47 @@ export default function AdminServicesPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.description) return alert('Name and description required');
+    if (!form.name || !form.description) { setStatus('Name and description required'); return; }
+    setSaving(true);
+    setStatus('');
     try {
+      const token = localStorage.getItem('css_token');
       const res = await fetch(`${API_BASE}/api/services`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ...form, price: form.price ? Number(form.price) : null }),
       });
       if (!res.ok) throw new Error('Failed');
       setForm({ name: '', description: '', price: '', price_unit: 'RWF', category: '', sort_order: 0 });
       loadServices();
-    } catch { alert('Failed to create service'); }
+    } catch { setStatus('Failed to create service'); }
+    finally { setSaving(false); }
   };
 
   const handleUpdate = async (id: number) => {
+    setSaving(true);
+    setStatus('');
     try {
+      const token = localStorage.getItem('css_token');
       const res = await fetch(`${API_BASE}/api/services/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ...editing, price: editing?.price || null }),
       });
       if (!res.ok) throw new Error('Failed');
       setEditing(null);
       loadServices();
-    } catch { alert('Failed to update'); }
+    } catch { setStatus('Failed to update'); }
+    finally { setSaving(false); }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this service?')) return;
     try {
-      await fetch(`${API_BASE}/api/services/${id}`, { method: 'DELETE' });
+      const token = localStorage.getItem('css_token');
+      await fetch(`${API_BASE}/api/services/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       loadServices();
-    } catch { alert('Failed to delete'); }
+    } catch { setStatus('Failed to delete'); }
   };
 
   if (authLoading || !user) {
@@ -125,8 +145,12 @@ export default function AdminServicesPage() {
               <input type="number" placeholder="Sort order" value={form.sort_order}
                 onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })}
                 className="w-32 px-3 py-2 border-2 border-foreground bg-background font-mono text-sm" />
-              <button type="submit" className="retro-border bg-primary text-background px-6 py-2 font-bold text-sm uppercase tracking-wider">Create</button>
+              <button type="submit" disabled={saving}
+                className="retro-border bg-primary text-background px-6 py-2 font-bold text-sm uppercase tracking-wider disabled:bg-gray-300">
+                {saving ? 'Creating...' : 'Create'}
+              </button>
             </div>
+            {status && <p className="text-sm font-bold font-mono mt-2" style={{ color: status.includes('Failed') || status.includes('required') ? '#c8412b' : '#2d5a27' }}>{status}</p>}
           </form>
         </div>
 
@@ -202,8 +226,8 @@ export default function AdminServicesPage() {
                   onChange={(e) => setEditing({ ...editing, sort_order: Number(e.target.value) })}
                   className="w-full px-3 py-2 border-2 border-foreground bg-background font-mono text-sm" />
                 <div className="flex gap-2">
-                  <button onClick={() => handleUpdate(editing.id)}
-                    className="px-4 py-2 text-xs font-bold bg-secondary text-background border-2 border-secondary">Save</button>
+                  <button onClick={() => handleUpdate(editing.id)} disabled={saving}
+                    className="px-4 py-2 text-xs font-bold bg-secondary text-background border-2 border-secondary disabled:bg-gray-300">{saving ? 'Saving...' : 'Save'}</button>
                   <button onClick={() => setEditing(null)}
                     className="px-4 py-2 text-xs font-bold bg-background text-foreground border-2 border-foreground">Cancel</button>
                 </div>

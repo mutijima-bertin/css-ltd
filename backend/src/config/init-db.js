@@ -127,6 +127,41 @@ const initDb = async () => {
       )
     `);
 
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS talent_profiles (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        full_name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        phone VARCHAR(50),
+        country_code VARCHAR(10) DEFAULT '250',
+        location VARCHAR(255),
+        bio TEXT,
+        profile_picture VARCHAR(500),
+        skill_tags JSON,
+        social_links JSON,
+        portfolio_links JSON,
+        status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+        admin_notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_talent_email (email),
+        INDEX idx_talent_status (status)
+      )
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS talent_demos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        talent_id INT NOT NULL,
+        file_url VARCHAR(500) NOT NULL,
+        file_type VARCHAR(50),
+        title VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (talent_id) REFERENCES talent_profiles(id) ON DELETE CASCADE,
+        INDEX idx_demos_talent (talent_id)
+      )
+    `);
+
     console.log('Database initialized: css_ltd with all tables created successfully');
   } catch (err) {
     console.error('Error initializing database:', err);

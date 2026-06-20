@@ -14,8 +14,12 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Name, email, and password are required' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
     }
 
     const existing = await findUserByEmail(email);
@@ -88,6 +92,11 @@ router.patch('/me', authenticate, async (req, res) => {
 
 router.post('/setup-admin', async (req, res) => {
   try {
+    const setupKey = req.headers['x-setup-key'];
+    if (!setupKey || setupKey !== process.env.SETUP_SECRET) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password required' });
@@ -105,6 +114,34 @@ router.post('/setup-admin', async (req, res) => {
     res.json({ message: 'Admin user created', userId });
   } catch (err) {
     res.status(500).json({ error: 'Admin setup failed' });
+  }
+});
+
+router.post('/change-password', authenticate, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: 'Current and new password are required' });
+    }
+
+    if (new_password.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    }
+
+    const user = await findUserByEmailOrUsername(req.user.email);
+    const valid = await bcrypt.compare(current_password, user.password_hash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    const password_hash = await bcrypt.hash(new_password, 10);
+    await updateUserPassword(req.user.id, password_hash);
+
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (err) {
+    console.error('Change password error:', err.message);
+    res.status(500).json({ error: 'Failed to change password' });
   }
 });
 

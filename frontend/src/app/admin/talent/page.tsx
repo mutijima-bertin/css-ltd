@@ -31,12 +31,13 @@ type TalentProfile = {
 };
 
 export default function AdminTalentPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, token } = useAuth();
   const router = useRouter();
   const [profiles, setProfiles] = useState<TalentProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
+  const [statusMsg, setStatusMsg] = useState('');
 
   useEffect(() => {
     if (authLoading) return;
@@ -47,10 +48,16 @@ export default function AdminTalentPage() {
     loadProfiles();
   }, [user, authLoading, router]);
 
+  const authHeaders = (headers: Record<string, string> = {}) => ({
+    ...headers,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  });
+
   const loadProfiles = async () => {
     setLoading(true);
+    setStatusMsg('');
     try {
-      const res = await fetch(`${API_BASE}/api/talent`);
+      const res = await fetch(`${API_BASE}/api/talent/all`, { headers: authHeaders() });
       const data = await res.json();
       setProfiles(data);
     } catch {
@@ -61,27 +68,39 @@ export default function AdminTalentPage() {
   };
 
   const handleStatus = async (id: number, status: string) => {
+    setStatusMsg('');
     try {
-      await fetch(`${API_BASE}/api/talent/${id}`, {
+      const res = await fetch(`${API_BASE}/api/talent/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ status, admin_notes: notes }),
       });
+      if (!res.ok) {
+        const err = await res.json();
+        setStatusMsg(err.error || 'Failed to update status');
+        return;
+      }
       setNotes('');
       setExpanded(null);
       loadProfiles();
     } catch {
-      alert('Failed to update status');
+      setStatusMsg('Failed to update status');
     }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this profile permanently?')) return;
+    setStatusMsg('');
     try {
-      await fetch(`${API_BASE}/api/talent/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/talent/${id}`, { method: 'DELETE', headers: authHeaders() });
+      if (!res.ok) {
+        const err = await res.json();
+        setStatusMsg(err.error || 'Failed to delete');
+        return;
+      }
       loadProfiles();
     } catch {
-      alert('Failed to delete');
+      setStatusMsg('Failed to delete');
     }
   };
 
@@ -113,6 +132,12 @@ export default function AdminTalentPage() {
             Home
           </Link>
         </div>
+
+        {statusMsg && (
+          <div className="retro-card p-4 mb-6 border-2 border-primary">
+            <p className="font-mono text-sm text-primary font-bold">{statusMsg}</p>
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-12 font-mono text-muted">

@@ -87,3 +87,34 @@ export async function fetchGalleryCategories() {
   if (!res.ok) throw new Error('Failed to fetch categories');
   return res.json();
 }
+
+export async function verifyPayment(txRef: string) {
+  const token = localStorage.getItem('css_token');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/bookings/verify-payment`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ tx_ref: txRef }),
+  });
+  if (!res.ok) throw new Error('Payment verification failed');
+  return res.json();
+}
+
+export async function retryPayment(bookingId: number) {
+  const token = localStorage.getItem('css_token');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/bookings/${bookingId}/retry-payment`, {
+    method: 'POST',
+    headers,
+  });
+  if (!res.ok) throw new Error('Failed to retry payment');
+  return res.json();
+}
+
+export async function fetchPayments(bookingId: number) {
+  const res = await fetch(`${API_BASE}/bookings/${bookingId}/payments`);
+  if (!res.ok) throw new Error('Failed to fetch payments');
+  return res.json();
+}
