@@ -13,7 +13,7 @@ export const findUserByEmail = async (email) => {
 export const findUserByUsername = async (username) => {
   const conn = await pool.getConnection();
   try {
-    const rows = await conn.query('SELECT * FROM users WHERE username = ?', [username]);
+    const rows = await conn.query('SELECT id FROM users WHERE username = ?', [username]);
     return rows[0] || null;
   } finally {
     conn.release();

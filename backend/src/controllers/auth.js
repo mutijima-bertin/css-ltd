@@ -1,9 +1,22 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { createUser, findUserByEmail, findUserByEmailOrUsername, findUserById, updateUserPassword, updateUser } from '../models/user.js';
+import { createUser, findUserByEmail, findUserByUsername, findUserByEmailOrUsername, findUserById, updateUserPassword, updateUser } from '../models/user.js';
 import { authenticate } from '../middleware/auth.js';
 
 export { authenticate };
+
+export const checkUsername = async (req, res) => {
+  const { q } = req.query;
+  if (!q || typeof q !== 'string' || q.length < 2) {
+    return res.json({ available: false });
+  }
+  try {
+    const existing = await findUserByUsername(q.trim());
+    res.json({ available: !existing });
+  } catch {
+    res.json({ available: false });
+  }
+};
 
 export const register = async (req, res) => {
   try {
@@ -19,6 +32,13 @@ export const register = async (req, res) => {
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    if (username) {
+      const existingUsername = await findUserByUsername(username.trim());
+      if (existingUsername) {
+        return res.status(409).json({ error: 'This username is already taken' });
+      }
     }
 
     const existing = await findUserByEmail(email);
@@ -54,12 +74,12 @@ export const login = async (req, res) => {
 
     const user = await findUserByEmailOrUsername(email);
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email/username or password' });
+      return res.status(401).json({ error: 'We couldn\'t find an account with that email/username. Check your credentials or create a new account.' });
     }
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
-      return res.status(401).json({ error: 'Invalid email/username or password' });
+      return res.status(401).json({ error: 'Incorrect password. Double-check your password or reset it.' });
     }
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
