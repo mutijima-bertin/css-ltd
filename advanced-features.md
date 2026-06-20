@@ -146,7 +146,63 @@ Admin-only:
 
 ---
 
-## 9. Design Notes
+## 9. Additional Features
+
+### 9.1 Notifications
+- Users get notified when someone replies to their thread
+- Talents get notified when their profile is approved/rejected
+- A notification bell icon in the navbar with an unread count
+- Database table: `notifications` (user_id, type, message, link, is_read, created_at)
+- API: `GET /api/notifications`, `PATCH /api/notifications/:id/read`
+
+### 9.2 Search
+- Search all threads and replies across communities
+- API: `GET /api/threads?q=search_term`
+- Frontend: search bar at top of community pages with live results
+
+### 9.3 Pinned Threads
+- Admins can pin important announcements per community
+- Pinned threads appear at the top of the thread list regardless of date
+- Add `is_pinned BOOLEAN DEFAULT FALSE` to `community_threads`
+
+### 9.4 Moderation / Reporting
+- Users can report inappropriate threads or replies
+- Admins have a moderation queue to review reported content
+- Database table: `reports` (id, reporter_id, target_type, target_id, reason, status, created_at)
+
+### 9.5 Reactions (Nice-to-Have)
+- Simple like/upvote on replies (thumbs up)
+- Not essential for v1 — can be added later
+
+---
+
+## 10. Database: Additional Tables
+
+### `notifications`
+| Column       | Type         | Notes                          |
+|--------------|--------------|--------------------------------|
+| id           | INT PK       | Auto-increment                 |
+| user_id      | INT FK       | References users.id            |
+| type         | VARCHAR(50)  | e.g. 'reply', 'approved', 'rejected' |
+| message      | TEXT         | Notification text              |
+| link         | VARCHAR(500) | URL to navigate to             |
+| is_read      | BOOLEAN      | DEFAULT FALSE                  |
+| created_at   | TIMESTAMP    |                                |
+
+### `reports`
+| Column       | Type         | Notes                          |
+|--------------|--------------|--------------------------------|
+| id           | INT PK       | Auto-increment                 |
+| reporter_id  | INT FK       | References users.id            |
+| target_type  | VARCHAR(50)  | 'thread' or 'reply'            |
+| target_id    | INT          | ID of the reported content     |
+| reason       | TEXT         | User-provided reason           |
+| status       | ENUM('pending','reviewed','dismissed') | DEFAULT 'pending' |
+| created_at   | TIMESTAMP    |                                |
+
+---
+
+## 11. Design Notes
 
 - Use existing retro design system (same Tailwind classes, fonts, borders)
 - Thread list: title, author (with badge), reply count, latest reply time
@@ -155,7 +211,7 @@ Admin-only:
 
 ---
 
-## 10. Implementation Order
+## 12. Implementation Order
 
 1. **Phase 4.1**: Database tables + init-db migration
 2. **Phase 4.2**: Backend API routes (communities, threads, replies)
@@ -163,3 +219,5 @@ Admin-only:
 4. **Phase 4.4**: Badge integration + talent profile community activity section
 5. **Phase 4.5**: Admin community management pages
 6. **Phase 4.6**: Polish (pagination, search, notifications)
+7. **Phase 4.7**: Notifications system (table, API, bell icon, unread count)
+8. **Phase 4.8**: Moderation / reporting system
