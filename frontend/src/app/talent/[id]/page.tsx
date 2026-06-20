@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -74,6 +75,7 @@ function DemoPlayer({ demo }: { demo: Demo }) {
 
 export default function TalentProfilePage() {
   const params = useParams();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<TalentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -158,9 +160,19 @@ export default function TalentProfilePage() {
             </div>
 
             <div className="min-w-0 flex-1">
-              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-1">
-                {profile.full_name}
-              </h1>
+              <div className="flex items-start gap-3">
+                <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight mb-1">
+                  {profile.full_name}
+                </h1>
+                {user && user.email === profile.email && (
+                  <Link
+                    href={`/talent/edit/${profile.id}`}
+                    className="shrink-0 px-3 py-1 text-[10px] font-bold uppercase border-2 border-foreground hover:bg-foreground hover:text-background transition-colors"
+                  >
+                    Edit
+                  </Link>
+                )}
+              </div>
               {profile.location && (
                 <p className="text-sm font-mono text-muted mb-2">{profile.location}</p>
               )}

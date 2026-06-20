@@ -5,7 +5,10 @@ import {
   getAllTalentProfiles,
   getTalentProfileById,
   updateTalentStatus,
+  updateTalentProfile,
   deleteTalentProfile,
+  deleteDemoFile,
+  getDemoById,
   getTalentByEmail,
 } from '../models/talent.js';
 
@@ -109,6 +112,119 @@ export const getMy = async (req, res) => {
     res.json(profiles);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch your talent profiles' });
+  }
+};
+
+const isOwnerOrAdmin = (profile, user) =>
+  user.role === 'admin' || (profile && profile.email === user.email);
+
+const parseField = (val) => {
+  if (val === undefined || val === null) return undefined;
+  if (typeof val === 'string') {
+    try { return JSON.parse(val); } catch { return val; }
+  }
+  return val;
+};
+
+export const update = async (req, res) => {
+  try {
+    const profile = await getTalentProfileById(Number(req.params.id));
+    if (!profile) return res.status(404).json({ error: 'Talent profile not found' });
+    if (!isOwnerOrAdmin(profile, req.user)) {
+      return res.status(403).json({ error: 'You can only edit your own profile' });
+    }
+
+    const allowed = ['full_name', 'email', 'phone', 'country_code', 'location', 'bio', 'skill_tags', 'social_links', 'portfolio_links'];
+    const updates = {};
+
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) {
+        const val = parseField(req.body[key]);
+        if (['skill_tags', 'social_links', 'portfolio_links'].includes(key)) {
+          updates[key] = Array.isArray(val) ? JSON.stringify(val) : val;
+        } else {
+          updates[key] = val;
+        }
+      }
+    }
+
+    const profile_picture = req.files?.profile_picture?.[0]?.path;
+    if (profile_picture) updates.profile_picture = profile_picture;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    await updateTalentProfile(Number(req.params.id), updates);
+    const updated = await getTalentProfileById(Number(req.params.id));
+
+    res.json({ success: true, profile: updated });
+  } catch (err) {
+    console.error('Talent update error:', err.message);
+    res.status(500).json({ error: 'Failed to update talent profile' });
+  }
+};
+
+export const addDemos = async (req, res) => {
+  try {
+    const profile = await getTalentProfileById(Number(req.params.id));
+    if (!profile) return res.status(404).json({ error: 'Talent profile not found' });
+    if (!isOwnerOrAdmin(profile, req.user)) {
+      return res.status(403).json({ error: 'You can only edit your own profile' });
+    }
+
+    const files = req.files || [];
+    const demoIds = [];
+
+    for (const file of files) {
+      const fileUrl = file.path;
+      const fileType = file.mimetype.startsWith('audio') ? 'audio'
+        : file.mimetype.startsWith('video') ? 'video'
+        : file.mimetype.startsWith('image') ? 'image' : 'document';
+      const demoId = await addDemoFile({
+        talent_id: Number(req.params.id),
+        file_url: fileUrl,
+        file_type: fileType,
+        title: file.originalname,
+      });
+      demoIds.push(demoId);
+    }
+
+    res.status(201).json({ success: true, demo_ids: demoIds, count: demoIds.length });
+  } catch (err) {
+    console.error('Add demos error:', err.message);
+    res.status(500).json({ error: 'Failed to add demo files' });
+  }
+};
+
+export const removeDemo = async (req, res) => {
+  try {
+    const demo = await getDemoById(Number(req.params.demoId));
+    if (!demo) return res.status(404).json({ error: 'Demo file not found' });
+
+    const profile = await getTalentProfileById(demo.talent_id);
+    if (!isOwnerOrAdmin(profile, req.user)) {
+      return res.status(403).json({ error: 'You can only edit your own profile' });
+    }
+
+    await deleteDemoFile(Number(req.params.demoId));
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Remove demo error:', err.message);
+    res.status(500).json({ error: 'Failed to remove demo file' });
+  }
+};
+
+export const getEdit = async (req, res) => {
+  try {
+    const profile = await getTalentProfileById(Number(req.params.id));
+    if (!profile) return res.status(404).json({ error: 'Talent profile not found' });
+    if (!isOwnerOrAdmin(profile, req.user)) {
+      return res.status(403).json({ error: 'You can only edit your own profile' });
+    }
+    res.json(profile);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch talent profile' });
   }
 };
 

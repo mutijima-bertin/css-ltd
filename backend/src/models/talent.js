@@ -112,6 +112,44 @@ export const deleteTalentProfile = async (id) => {
   }
 };
 
+export const updateTalentProfile = async (id, data) => {
+  const conn = await pool.getConnection();
+  try {
+    const fields = [];
+    const values = [];
+    for (const [key, value] of Object.entries(data)) {
+      fields.push(`${key} = ?`);
+      values.push(value !== undefined ? value : null);
+    }
+    values.push(id);
+    await conn.query(
+      `UPDATE talent_profiles SET ${fields.join(', ')} WHERE id = ?`,
+      values
+    );
+  } finally {
+    conn.release();
+  }
+};
+
+export const getDemoById = async (demoId) => {
+  const conn = await pool.getConnection();
+  try {
+    const rows = await conn.query('SELECT * FROM talent_demos WHERE id = ?', [demoId]);
+    return rows.length > 0 ? rows[0] : null;
+  } finally {
+    conn.release();
+  }
+};
+
+export const deleteDemoFile = async (demoId) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query('DELETE FROM talent_demos WHERE id = ?', [demoId]);
+  } finally {
+    conn.release();
+  }
+};
+
 export const getTalentByEmail = async (email) => {
   const conn = await pool.getConnection();
   try {

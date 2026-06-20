@@ -220,11 +220,14 @@ export default function DashboardPage() {
                   <div key={p.id} className="border-2 border-foreground p-4">
                     <div className="flex items-center justify-between mb-2">
                       <p className="font-bold">{p.full_name}</p>
-                      <span className={`px-2 py-0.5 text-xs font-bold uppercase ${
-                        p.status === 'approved' ? 'bg-secondary text-background' :
-                        p.status === 'rejected' ? 'bg-primary text-background' :
-                        'bg-accent text-foreground'
-                      }`}>{p.status}</span>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/talent/edit/${p.id}`} className="text-xs text-secondary underline">Edit</Link>
+                        <span className={`px-2 py-0.5 text-xs font-bold uppercase ${
+                          p.status === 'approved' ? 'bg-secondary text-background' :
+                          p.status === 'rejected' ? 'bg-primary text-background' :
+                          'bg-accent text-foreground'
+                        }`}>{p.status}</span>
+                      </div>
                     </div>
                     <p className="text-xs text-muted font-mono">
                       Submitted {new Date(p.created_at).toLocaleDateString()} · {p.demos?.length || 0} demo file{(p.demos?.length || 0) !== 1 ? 's' : ''}
