@@ -1,152 +1,24 @@
 import { Router } from 'express';
-import {
-  createTalentProfile,
-  addDemoFile,
-  getApprovedTalentProfiles,
-  getAllTalentProfiles,
-  getTalentProfileById,
-  updateTalentStatus,
-  deleteTalentProfile,
-  getTalentByEmail,
-} from '../models/talent.js';
 import { uploadDemo } from '../services/upload.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
+import {
+  create,
+  getApproved,
+  getAll,
+  getMy,
+  getById,
+  updateStatus,
+  remove,
+} from '../controllers/talent.js';
 
 const router = Router();
 
-router.post('/', authenticate, uploadDemo.fields([{ name: 'demos', maxCount: 5 }, { name: 'profile_picture', maxCount: 1 }]), async (req, res) => {
-  try {
-    const full_name = req.body.full_name || req.user.full_name;
-    const email = req.body.email || req.user.email;
-    const phone = req.body.phone || req.user.phone || '';
-    const { country_code, location, bio, skill_tags, social_links, portfolio_links } = req.body;
-
-    if (!full_name || !email) {
-      return res.status(400).json({ error: 'Name and email are required' });
-    }
-
-    const profile_picture = req.files?.profile_picture?.[0]?.path || null;
-
-    let parsedSkillTags = skill_tags;
-    if (typeof skill_tags === 'string') {
-      try { parsedSkillTags = JSON.parse(skill_tags); } catch { parsedSkillTags = [skill_tags]; }
-    }
-
-    let parsedSocial = social_links;
-    if (typeof social_links === 'string') {
-      try { parsedSocial = JSON.parse(social_links); } catch { parsedSocial = [social_links]; }
-    }
-
-    let parsedPortfolio = portfolio_links;
-    if (typeof portfolio_links === 'string') {
-      try { parsedPortfolio = JSON.parse(portfolio_links); } catch { parsedPortfolio = [portfolio_links]; }
-    }
-
-    const demos = req.files?.demos || [];
-
-    const profileId = await createTalentProfile({
-      full_name,
-      email,
-      phone,
-      country_code,
-      location,
-      bio,
-      profile_picture,
-      skill_tags: parsedSkillTags,
-      social_links: parsedSocial,
-      portfolio_links: parsedPortfolio,
-    });
-
-    const demoIds = [];
-    if (demos.length > 0) {
-      for (const file of demos) {
-        const fileUrl = file.path;
-        const fileType = file.mimetype.startsWith('audio') ? 'audio'
-          : file.mimetype.startsWith('video') ? 'video'
-          : file.mimetype.startsWith('image') ? 'image' : 'document';
-        const demoId = await addDemoFile({
-          talent_id: profileId,
-          file_url: fileUrl,
-          file_type: fileType,
-          title: file.originalname,
-        });
-        demoIds.push(demoId);
-      }
-    }
-
-    res.status(201).json({
-      profile_id: profileId,
-      demo_count: demoIds.length,
-      message: 'Talent profile submitted successfully',
-    });
-  } catch (err) {
-    console.error('Talent submission error:', err.message);
-    if (err.message?.includes('File type not supported')) {
-      return res.status(400).json({ error: err.message });
-    }
-    res.status(500).json({ error: 'Failed to submit talent profile' });
-  }
-});
-
-router.get('/', async (req, res) => {
-  try {
-    const profiles = await getApprovedTalentProfiles();
-    res.json(profiles);
-  } catch (err) {
-    console.error('Fetch talent error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch talent profiles' });
-  }
-});
-
-router.get('/all', authenticate, requireRole('admin'), async (req, res) => {
-  try {
-    const profiles = await getAllTalentProfiles();
-    res.json(profiles);
-  } catch (err) {
-    console.error('Fetch all talent error:', err.message);
-    res.status(500).json({ error: 'Failed to fetch talent profiles' });
-  }
-});
-
-router.get('/my', authenticate, async (req, res) => {
-  try {
-    const profiles = await getTalentByEmail(req.user.email);
-    res.json(profiles);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch your talent profiles' });
-  }
-});
-
-router.get('/:id', async (req, res) => {
-  try {
-    const profile = await getTalentProfileById(Number(req.params.id));
-    if (!profile || profile.status !== 'approved') return res.status(404).json({ error: 'Talent profile not found' });
-    res.json(profile);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch talent profile' });
-  }
-});
-
-router.patch('/:id', authenticate, requireRole('admin'), async (req, res) => {
-  try {
-    const { status, admin_notes } = req.body;
-    if (!['pending', 'approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status. Use pending, approved, or rejected.' });
-    }
-    await updateTalentStatus(Number(req.params.id), { status, admin_notes });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update talent profile' });
-  }
-});
-
-router.delete('/:id', authenticate, requireRole('admin'), async (req, res) => {
-  try {
-    await deleteTalentProfile(Number(req.params.id));
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to delete talent profile' });
-  }
-});
+router.post('/', authenticate, uploadDemo.fields([{ name: 'demos', maxCount: 5 }, { name: 'profile_picture', maxCount: 1 }]), create);
+router.get('/', getApproved);
+router.get('/all', authenticate, requireRole('admin'), getAll);
+router.get('/my', authenticate, getMy);
+router.get('/:id', getById);
+router.patch('/:id', authenticate, requireRole('admin'), updateStatus);
+router.delete('/:id', authenticate, requireRole('admin'), remove);
 
 export default router;
